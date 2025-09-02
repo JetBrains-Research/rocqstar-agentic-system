@@ -14,22 +14,8 @@ import java.net.http.HttpClient
 
 @LLMDescription("Tools for interacting with my MCP Coq server")
 class RocqMcpToolSet(
-    theoremName: String,
-    targetTheoremPath: String,
-    mcpSessionManager: McpSessionManager,
-    projectServerBaseUrl: String = "http://localhost:8000/rest/document",
-    mcpServerBaseUrl: String = "http://localhost:3001/mcp",
-    client: HttpClient = HttpClient.newHttpClient()
+    private val proofSessionManager: RocqProofSessionManager
 ) : ToolSet {
-    private val proofSessionManager = RocqProofSessionManager(
-        theoremName,
-        targetTheoremPath,
-        mcpSessionManager,
-        projectServerBaseUrl,
-        mcpServerBaseUrl,
-        client
-    )
-
     @Tool
     @LLMDescription("Get project root info from MCP server")
     fun getProjectRoot() = proofSessionManager.callTool("get_project_root", false)
@@ -204,22 +190,28 @@ fun main() {
             ?: error("OPENAI_API_KEY not set")
 
         val mcpSessionManager = McpSessionManager()
-        val mcpTools = RocqMcpToolSet(
+        val proofSessionManager = RocqProofSessionManager(
             "eco_alt3",
             "src/basic/Execution_eco.v",
             mcpSessionManager
         )
 
-        val agent = AIAgent(
-            executor = simpleOpenAIExecutor(apiKey),
-            systemPrompt = "You are agent that can communicate to the Coq MCP.",
-            llmModel = OpenAIModels.Chat.GPT4o,
-            toolRegistry = ToolRegistry {
-                tools(mcpTools)
-            }
-        )
+        proofSessionManager.use { sessionManager ->
+            val mcpTools = RocqMcpToolSet(
+                sessionManager
+            )
 
-        val result = agent.run("Show me the working directory using getProjectRoot")
-        println("AGENT RESULT: $result")
+            val agent = AIAgent(
+                executor = simpleOpenAIExecutor(apiKey),
+                systemPrompt = "You are agent that can communicate to the Coq MCP.",
+                llmModel = OpenAIModels.Chat.GPT4o,
+                toolRegistry = ToolRegistry {
+                    tools(mcpTools)
+                }
+            )
+
+            val result = agent.run("Show me the working directory using getProjectRoot")
+            println("AGENT RESULT: $result")
+        }
     }
 }

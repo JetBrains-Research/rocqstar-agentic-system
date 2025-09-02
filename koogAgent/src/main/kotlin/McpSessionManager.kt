@@ -5,6 +5,10 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
+/**
+ * The life-time of this class is the whole process of communication
+ * between the agent and the MCP. It handles resources that stay constant during the whole pipeline
+ */
 class McpSessionManager(
     mcpServerBaseUrl: String = "http://localhost:3001/mcp",
     client: HttpClient = HttpClient.newHttpClient()
@@ -30,6 +34,7 @@ class McpSessionManager(
     }
     """
 
+    // The behavior is mostly defined by the MCP-protocol
     init {
         val req = HttpRequest.newBuilder()
             .uri(URI.create(mcpServerBaseUrl))
