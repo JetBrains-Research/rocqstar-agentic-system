@@ -1,0 +1,69 @@
+agentId: "apr-rocqstar-koog-agent"
+agentVersion: "0.0.1"
+
+coq_project_server_url: "http://localhost:8000/rest/document"
+mcp_server_url: "http://localhost:3001/mcp"
+
+backend: "grazie" # "grazie" | "openai"
+planning_type: "mad" # "mad" (multi-agentic-debates) | "simple"
+mad_rounds_number: 3
+
+# Default model setup. When no parameter is specified in the model
+# configuration, it is resolved to a default value
+defaults:
+  max_tokens_to_sample: 2048
+  temperature: 0.8
+  profile: "anthropic-claude-3.5-sonnet"
+
+grazie:
+  client_auth_type: "user" # "application" | "user"
+
+planning:
+  plan_ranker:
+    max_tokens_to_sample: 1024
+    temperature: ""
+    profile: ""
+  mad_planning:
+    pro_plan_model:
+      max_tokens_to_sample: ""
+      temperature: ""
+      profile: ""
+    con_plan_model:
+      max_tokens_to_sample: ""
+      temperature: ""
+      profile: ""
+    judge_model:
+      max_tokens_to_sample: ""
+      temperature: ""
+      profile: ""
+
+  simple_planning:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+
+generators:
+  executor:
+    max_tokens_to_sample: 8000
+    temperature: ""
+    profile: ""
+  proof_progress_critic:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: "anthropic-claude-3.7-sonnet"
+  replanner:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+  summarizer:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+  plan_failure_summarizer:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+  similar_theorems_analyzer:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""

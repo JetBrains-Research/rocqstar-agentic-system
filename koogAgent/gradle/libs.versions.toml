@@ -1,0 +1,27 @@
+[versions]
+kotlin = "2.1.21"
+koog = "0.3.0"
+grazie = "0.8.11"
+grazie-gateway = "0.8.46"
+code-engine = "1.0.0-beta.92"
+ktor = "3.1.3"
+dotenv = "6.5.1"
+slf4j = "2.0.17"
+serialization = "1.9.0"
+fasterxml-jackson = "2.19.0"
+
+[libraries]
+koog = { module = "ai.koog:koog-agents", version.ref = "koog" }
+grazie-koog-executor = { module = "ai.jetbrains.code.prompt:code-prompt-executor-grazie-koog-jvm", version.ref = "code-engine" }
+grazie-ktor = { module = "ai.grazie.client:client-ktor", version.ref = "grazie" }
+ktor-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor"}
+dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
+slf4j = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j"}
+kotlin-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization"}
+grazie-gateway = { module = "ai.grazie.api:api-gateway-client-jvm", version.ref = "grazie-gateway" }
+jackson-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "fasterxml-jackson" }
+jackson-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "fasterxml-jackson" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

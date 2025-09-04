@@ -1,4 +1,4 @@
-package org.example
+package org.example.tools
 
 import java.net.URI
 import java.net.http.HttpClient
@@ -34,13 +34,14 @@ class McpSessionManager(
     }
     """
 
-    // The behavior is mostly defined by the MCP-protocol
+    // This behavior is mostly defined by the MCP-protocol
     init {
         val req = HttpRequest.newBuilder()
             .uri(URI.create(mcpServerBaseUrl))
             .header("Accept", "application/json, text/event-stream")
             .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString("""{
+            .POST(
+                HttpRequest.BodyPublishers.ofString("""{
               "jsonrpc": "2.0",
               "method": "initialize",
               "params": { "clientInfo": $clientInfoPayload, "protocolVersion": "2025-03-26", "capabilities": {} },

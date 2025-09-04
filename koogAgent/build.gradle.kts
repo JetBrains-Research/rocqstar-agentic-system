@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 group = "org.example"
@@ -8,14 +8,27 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    mavenLocal()
+    maven {
+        url = uri("https://packages.jetbrains.team/maven/p/grazi/grazie-platform-public")
+    }
 }
 
 dependencies {
     testImplementation(kotlin("test"))
-    implementation("ai.koog:koog-agents:0.4.1")
-    implementation("org.slf4j:slf4j-simple:2.0.17")
-    implementation("io.github.cdimascio:dotenv-kotlin:6.5.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+
+    implementation(libs.koog)
+    implementation(libs.grazie.koog.executor)
+    implementation(libs.grazie.ktor)
+    implementation(libs.grazie.gateway)
+    implementation(libs.ktor.okhttp)
+
+    implementation(libs.jackson.kotlin)
+    implementation(libs.jackson.yaml)
+    implementation(libs.kotlin.serialization)
+
+    implementation(libs.slf4j)
+    implementation(libs.dotenv)
 }
 
 tasks.test {

@@ -1,4 +1,4 @@
-package org.example
+package org.example.tools
 
 import java.net.http.HttpClient
 import java.net.http.HttpRequest

@@ -1,4 +1,4 @@
-package org.example
+package org.example.tools
 
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.tools.ToolRegistry
@@ -10,8 +10,11 @@ import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
 import io.github.cdimascio.dotenv.dotenv
 import kotlinx.coroutines.runBlocking
-import java.net.http.HttpClient
 
+/**
+ * This class only contains the wrappers over actual tool-calls;
+ * signature of the methods is basically the only thing seen by the agent
+ */
 @LLMDescription("Tools for interacting with my MCP Coq server")
 class RocqMcpToolSet(
     private val proofSessionManager: RocqProofSessionManager
@@ -78,13 +81,11 @@ class RocqMcpToolSet(
 
     @Tool
     @LLMDescription(
-        """
-        Validates a proof (or a part of a proof) in the context of a session and returns either of the following: 
-        (i) That there are no more goals to prove
-        (ii) Provided proof produces no errors, but the goal is not fully solved. Returns: updated goal state
-        (iii) The current goal is solved, but there are more goals at other depth levels. Returns: first unsolved goal at the closest depth level
-        (iv) Provided proof produces errors. Returns: error message
-        """
+        "Validates a proof (or a part of a proof) in the context of a session and returns either of the following:\n" +
+        "(i) That there are no more goals to prove\n" +
+        "(ii) Provided proof produces no errors, but the goal is not fully solved. Returns: updated goal state\n" +
+        "(iii) The current goal is solved, but there are more goals at other depth levels. Returns: first unsolved goal at the closest depth level\n" +
+        "(iv) Provided proof produces errors. Returns: error message"
     )
     fun checkProof(
         @LLMDescription("The proof to validate. It should start with 'Proof.'")
@@ -104,10 +105,8 @@ class RocqMcpToolSet(
     @LLMDescription("Retrieves similar proofs for a goal in a file")
     fun getSimilarProofs(
         @LLMDescription(
-        """
-            The goal to find similar proofs for. Should be a JSON string matching the interface: 
-            "{ hypothesis: string[], conclusion: string }". IT IS A STRING NOT AN OBJECT
-            """
+            "The goal to find similar proofs for. Should be a JSON string matching the interface: " +
+            "\"{ hypothesis: string[], conclusion: string }\". IT IS A STRING NOT AN OBJECT"
         )
         goal: String,
         @LLMDescription("Path to the Coq file")
@@ -126,10 +125,8 @@ class RocqMcpToolSet(
 
     @Tool
     @LLMDescription(
-        """
-        Returns output of Coq Print All command, issued in the context of the current session. This command prints all defined objects in the current file. 
-        In particular, that would mean printing all statements of theorems available above the one we are trying to prove at the moment of request.
-        """
+        "Returns output of Coq Print All command, issued in the context of the current session. This command prints all defined objects in the current file. " +
+        "In particular, that would mean printing all statements of theorems available above the one we are trying to prove at the moment of request."
     )
     fun getObjects() = proofSessionManager.callTool("get_objects", true)
 
@@ -146,10 +143,8 @@ class RocqMcpToolSet(
 
     @Tool
     @LLMDescription(
-        """
-        Searches for a pattern in the current session's file. Uses Search Coq Command. An example of a valid command: 
-        Search (?a + ?b = ?b + ?a). It could be useful for finding lemmas that could be used in the proof.  
-        """
+        "Searches for a pattern in the current session's file. Uses Search Coq Command. An example of a valid command: " +
+        "Search (?a + ?b = ?b + ?a). It could be useful for finding lemmas that could be used in the proof."
     )
     fun searchPattern(
         @LLMDescription("The pattern to search for")
