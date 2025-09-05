@@ -1,24 +1,26 @@
 package org.example
 
+import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
 import kotlinx.coroutines.runBlocking
 import org.example.generation.GrazieConfig
 import org.example.generation.simpleGrazieExecutor
-import org.example.planning.generateMadPlan
 import org.example.tools.McpSessionManager
-import org.example.tools.RocqMcpToolSet
-import org.example.tools.RocqProofSessionManager
-import org.example.tools.getToolSummary
+import org.example.utils.Backend
 import org.example.utils.GRAZIE_STAGING_URI
 import org.example.utils.loadAgentConfig
 import java.net.http.HttpClient
 import java.nio.file.Path
-import kotlin.use
 
 fun main() {
     runBlocking {
         val agentConfig = loadAgentConfig(Path.of("agent-config.yaml"))
-        val grazieConfig = GrazieConfig.fromAgentConfig(agentConfig)
-        val grazieExecutor = simpleGrazieExecutor(grazieConfig, GRAZIE_STAGING_URI)
+        val executor = if (agentConfig.backend == Backend.Grazie) {
+            val grazieConfig = GrazieConfig.fromAgentConfig(agentConfig)
+            simpleGrazieExecutor(grazieConfig, GRAZIE_STAGING_URI)
+        } else {
+            // TODO: Support non-grazie backend with different LLM providers
+            simpleOpenAIExecutor(agentConfig.apiTokens.openAiApiToken)
+        }
 
         val theoremName = "loceq_same_tid"
         val targetPath = "src/basic/Events.v"
@@ -28,28 +30,25 @@ fun main() {
             agentConfig.mcpServerBaseUrl,
             httpClient
         )
-        val proofSessionManager = RocqProofSessionManager(
-            theoremName,
-            targetPath,
+
+        val agent = RocqStarAgent(
+            agentConfig,
+            executor,
             mcpSessionManager,
-            agentConfig.coqProjectServerBaseUrl,
-            agentConfig.mcpServerBaseUrl,
             httpClient
         )
 
-        proofSessionManager.use { sessionManager ->
-            val mcpTools = RocqMcpToolSet(
-                sessionManager
+        val generationResult = agent.execute(theoremName, targetPath)
+        if (generationResult.isSuccessful) {
+            println(
+                """
+                    Generation of proof for theorem $theoremName has succeeded, the following proof was produced: 
+                    ${generationResult.completeProof}
+                """.trimIndent()
             )
-
-            val plan = generateMadPlan(
-                "Lemma loceq_same_tid (r: relation actid) (H: funeq tid r): r ⊆ r ∩ same_tid.",
-                getToolSummary(mcpTools),
-                agentConfig,
-                grazieExecutor
-            )
-
-            println(plan)
+        } else {
+            println("Unfortunately, generation for theorem $theoremName failed")
         }
+
     }
 }

@@ -10,6 +10,7 @@ import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
 import io.github.cdimascio.dotenv.dotenv
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 
 /**
  * This class only contains the wrappers over actual tool-calls;
@@ -51,13 +52,10 @@ class RocqMcpToolSet(
 
     @Tool
     @LLMDescription("Returns the stage of the proof for the target theorem in the current session.")
-    fun getCurrentTargetTheoremState(
-        @LLMDescription("Hash of the current proof version")
-        proofVersionHash: String,
-    ) = proofSessionManager.callTool(
+    fun getCurrentTargetTheoremState() = proofSessionManager.callTool(
         "get_current_target_theorem_state",
         true,
-        mapOf("proofVersionHash" to BodyParam.Str(proofVersionHash))
+        mapOf("proofVersionHash" to BodyParam.Str(proofSessionManager.proofHash))
     )
 
     @Tool
@@ -67,18 +65,20 @@ class RocqMcpToolSet(
         filePath: String,
         @LLMDescription("Name of the theorem to retrieve")
         theoremName: String,
-        @LLMDescription("Hash of the current proof version")
-        proofVersionHash: String,
     ) = proofSessionManager.callTool(
         "get_specific_theorem_with_proof_by_name",
         true,
         mapOf(
             "filePath" to BodyParam.Str(filePath),
             "theoremName" to BodyParam.Str(theoremName),
-            "proofVersionHash" to BodyParam.Str(proofVersionHash),
+            "proofVersionHash" to BodyParam.Str(proofSessionManager.proofHash),
         )
     )
 
+    /**
+     * As this method updates the state of the Rocq proof session manager, the request is done directly through the
+     * Rocq project server, bypassing the MCP
+     */
     @Tool
     @LLMDescription(
         "Validates a proof (or a part of a proof) in the context of a session and returns either of the following:\n" +
@@ -90,16 +90,11 @@ class RocqMcpToolSet(
     fun checkProof(
         @LLMDescription("The proof to validate. It should start with 'Proof.'")
         proof: String,
-        @LLMDescription("Hash of the current proof version")
-        proofVersionHash: String,
-    ) = proofSessionManager.callTool(
-        "check_proof",
-        true,
-        mapOf(
-            "proof" to BodyParam.Str(proof),
-            "proofVersionHash" to BodyParam.Str(proofVersionHash)
-        )
-    )
+    ): String {
+        val checkProofResDes = proofSessionManager.checkProof(proof)
+        val jsonString = Json.encodeToString(ProofCheckResponse.serializer(), checkProofResDes)
+        return jsonString
+    }
 
     @Tool
     @LLMDescription("Retrieves similar proofs for a goal in a file")

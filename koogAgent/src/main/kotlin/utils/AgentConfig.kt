@@ -22,12 +22,20 @@ data class AgentConfig private constructor(
     val coqProjectServerBaseUrl: String,
     @param:JsonProperty("mcp_server_url")
     val mcpServerBaseUrl: String,
-
     val backend: Backend,
+
+    // TODO: Move to planning config
     @param:JsonProperty("mad_rounds_number")
     val madRoundsNumber: Int,
+    @param:JsonProperty("how_many_plans_to_generate")
+    val numPlansToGenerate: Int,
+    @param:JsonProperty("how_many_best_plans_to_execute")
+    val numBestPlansToExec: Int,
     @param:JsonProperty("planning_type")
     val planningType: PlanningType,
+    @param:JsonProperty("maximum_premises_from_ranker")
+    val maximumPremisesFromRanker: Int,
+
     val defaults: Defaults,
     val grazie: GrazieConfig,
 
@@ -41,8 +49,18 @@ data class AgentConfig private constructor(
     val apiTokens: APITokens = APITokens()
 ) {
     init {
+        // TODO: Refactor
         require(madRoundsNumber > 0) {
             "mad_rounds_number must be greater than 0, but was $madRoundsNumber"
+        }
+        require(numPlansToGenerate > 0) {
+            "how_many_plans_to_generate must be greater than 0, but was $numPlansToGenerate"
+        }
+        require(numBestPlansToExec > 0) {
+            "how_many_best_plans_to_execute must be greater than 0, but was $numBestPlansToExec"
+        }
+        require(maximumPremisesFromRanker > 0) {
+            "maximum_premises_from_ranker must be greater than 0, but was $numBestPlansToExec"
         }
     }
 
@@ -53,6 +71,10 @@ data class AgentConfig private constructor(
         mcpServerBaseUrl = mcpServerBaseUrl,
         backend = backend,
         madRoundsNumber = madRoundsNumber,
+        numPlansToGenerate = numPlansToGenerate,
+        numBestPlansToExec = numBestPlansToExec,
+        planningType = planningType,
+        maximumPremisesFromRanker = maximumPremisesFromRanker,
         defaults = defaults,
         grazie = grazie,
         planning = rawPlanning.resolved(defaults),
@@ -68,6 +90,10 @@ data class ResolvedAgentConfig(
     val mcpServerBaseUrl: String,
     val backend: Backend,
     val madRoundsNumber: Int,
+    val numPlansToGenerate: Int,
+    val numBestPlansToExec: Int,
+    val planningType: PlanningType,
+    val maximumPremisesFromRanker: Int,
     val defaults: Defaults,
     val grazie: GrazieConfig,
     val planning: ResolvedPlanningConfig,
