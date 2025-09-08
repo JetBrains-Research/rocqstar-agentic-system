@@ -95,10 +95,12 @@ class RocqProofSessionManager(
     }
 
     /**
-     * The requests to initialize and finish proof-sessions are sent
+     * The following six requests are sent
      * to the Coq Proof Server, which is a lower-level abstraction under the MCP.
      * [coqProjectRequest] by-passes the MCP and sends the request directly to the
-     * Coq Proof server.
+     * Coq Proof server. That is done in that way due to multiple reasons. E.g. MCP does not
+     * have requests to start and end session; we want to wrap CheckProofs request and manage its
+     * output to update session resources, etc.
      *
      * @return ID of the started session, and the initial proof hash
      */

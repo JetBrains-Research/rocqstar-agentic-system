@@ -24,9 +24,6 @@ data class AgentConfig private constructor(
     val mcpServerBaseUrl: String,
     val backend: Backend,
 
-    // TODO: Move to planning config
-    @param:JsonProperty("mad_rounds_number")
-    val madRoundsNumber: Int,
     @param:JsonProperty("how_many_plans_to_generate")
     val numPlansToGenerate: Int,
     @param:JsonProperty("how_many_best_plans_to_execute")
@@ -35,6 +32,10 @@ data class AgentConfig private constructor(
     val planningType: PlanningType,
     @param:JsonProperty("maximum_premises_from_ranker")
     val maximumPremisesFromRanker: Int,
+    @param:JsonProperty("allowed_failed_proof_checks_in_row")
+    val allowedFailedProofChecks: Int,
+    @param:JsonProperty("total_allowed_tool_calls")
+    val totalAllowedToolCalls: Int,
 
     val defaults: Defaults,
     val grazie: GrazieConfig,
@@ -49,18 +50,16 @@ data class AgentConfig private constructor(
     val apiTokens: APITokens = APITokens()
 ) {
     init {
-        // TODO: Refactor
-        require(madRoundsNumber > 0) {
-            "mad_rounds_number must be greater than 0, but was $madRoundsNumber"
-        }
-        require(numPlansToGenerate > 0) {
-            "how_many_plans_to_generate must be greater than 0, but was $numPlansToGenerate"
-        }
-        require(numBestPlansToExec > 0) {
-            "how_many_best_plans_to_execute must be greater than 0, but was $numBestPlansToExec"
-        }
-        require(maximumPremisesFromRanker > 0) {
-            "maximum_premises_from_ranker must be greater than 0, but was $numBestPlansToExec"
+        validatePositive(numPlansToGenerate, "how_many_plans_to_generate")
+        validatePositive(numBestPlansToExec, "how_many_best_plans_to_execute")
+        validatePositive(maximumPremisesFromRanker, "maximum_premises_from_ranker")
+        validatePositive(allowedFailedProofChecks, "allowed_failed_proof_checks_in_row")
+        validatePositive(totalAllowedToolCalls, "total_allowed_tool_calls")
+    }
+
+    private fun validatePositive(value: Int, fieldName: String) {
+        require(value > 0) {
+            "$fieldName must be greater than 0, but was $value"
         }
     }
 
@@ -70,11 +69,12 @@ data class AgentConfig private constructor(
         coqProjectServerBaseUrl = coqProjectServerBaseUrl,
         mcpServerBaseUrl = mcpServerBaseUrl,
         backend = backend,
-        madRoundsNumber = madRoundsNumber,
         numPlansToGenerate = numPlansToGenerate,
         numBestPlansToExec = numBestPlansToExec,
         planningType = planningType,
         maximumPremisesFromRanker = maximumPremisesFromRanker,
+        allowedFailedProofChecks = allowedFailedProofChecks,
+        totalAllowedToolCalls = totalAllowedToolCalls,
         defaults = defaults,
         grazie = grazie,
         planning = rawPlanning.resolved(defaults),
@@ -89,11 +89,12 @@ data class ResolvedAgentConfig(
     val coqProjectServerBaseUrl: String,
     val mcpServerBaseUrl: String,
     val backend: Backend,
-    val madRoundsNumber: Int,
     val numPlansToGenerate: Int,
     val numBestPlansToExec: Int,
     val planningType: PlanningType,
     val maximumPremisesFromRanker: Int,
+    val allowedFailedProofChecks: Int,
+    val totalAllowedToolCalls: Int,
     val defaults: Defaults,
     val grazie: GrazieConfig,
     val planning: ResolvedPlanningConfig,
@@ -217,6 +218,9 @@ enum class PlanningType(val value: String) {
 }
 
 internal data class MadPlanning(
+    @param:JsonProperty("mad_rounds_number")
+    private val madRoundsNumber: Int = 2,
+
     @param:JsonProperty("pro_plan_model")
     private val rawProPlan: ModelConfig = ModelConfig(),
 
@@ -226,7 +230,14 @@ internal data class MadPlanning(
     @param:JsonProperty("judge_model")
     private val rawJudge: ModelConfig = ModelConfig()
 ) {
+    init {
+        require(madRoundsNumber > 0) {
+            "mad_rounds_number must be greater than 0, but was $madRoundsNumber"
+        }
+    }
+
     fun resolved(defaults: Defaults) = ResolvedMadPlanning(
+        madRoundsNumber = madRoundsNumber,
         proPlan = rawProPlan.resolved(defaults),
         conPlan = rawConPlan.resolved(defaults),
         judge = rawJudge.resolved(defaults)
@@ -234,6 +245,7 @@ internal data class MadPlanning(
 }
 
 data class ResolvedMadPlanning(
+    val madRoundsNumber: Int,
     val proPlan: ResolvedModelConfig,
     val conPlan: ResolvedModelConfig,
     val judge: ResolvedModelConfig

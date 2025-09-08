@@ -48,7 +48,7 @@ suspend fun generateMadPlan(
             agentConfig,
             toolsetSummary,
             theoremStatement,
-            agentConfig.madRoundsNumber
+            agentConfig.planning.madPlanning.madRoundsNumber
         ),
         toolRegistry = toolRegistry
     )

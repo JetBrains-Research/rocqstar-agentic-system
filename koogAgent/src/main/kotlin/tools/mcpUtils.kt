@@ -3,6 +3,9 @@ package org.example.tools
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
+import org.example.agent.SimilarTheorems
+import org.example.agent.Theorem
+import java.util.logging.Logger
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.findAnnotation
 
@@ -13,6 +16,43 @@ fun getToolSummary(toolset: ToolSet): String {
             val desc = fn.findAnnotation<LLMDescription>()?.description ?: "No description"
             "- **${fn.name}**: $desc"
         }
+}
+
+/**
+ * This method does context retrieval in the file, by exploring other defined theorems
+ * and ranking them according to the chosen ranker. By default, it uses RocqStarRanker.
+ * This behavior is defined in /src/agentServer/controllers/coqProjectController.ts file
+ * of the MCP/Rocq-server project.
+ */
+fun retrieveContextPremises(
+    filePath: String,
+    sessionManager: RocqProofSessionManager,
+    maximumPremisesFromRanker: Int,
+    logger: Logger,
+): SimilarTheorems {
+    val currentGoals = sessionManager.currentGoals
+    // The state in Rocq is described as a list of goals, we iterate over goals,
+    // for each of them we fetch theorems with similar goals, and return the concatenated list
+
+    require(currentGoals != null ) { "Coq Project server returned goals = null" }
+    if (currentGoals.isNotEmpty()) {
+        logger.warning("Observed state with no goals")
+    }
+
+    val premiseNames = mutableListOf<String>()
+    for (goal in currentGoals) {
+        val premises = sessionManager.getPremises(
+            goal,
+            filePath,
+            maximumPremisesFromRanker
+        )
+        premiseNames.addAll(premises.premises)
+    }
+
+    return premiseNames.map { theoremName ->
+        val theorem = sessionManager.getTheorem(filePath, theoremName)
+        Theorem(theorem.theoremStatement, theorem.theoremProof)
+    }
 }
 
 /**

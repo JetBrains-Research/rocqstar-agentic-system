@@ -1,21 +1,23 @@
-package org.example
+package org.example.agent
 
-import ai.koog.agents.core.agent.entity.AIAgentStrategy
-import ai.koog.agents.core.dsl.builder.strategy
+import ai.koog.agents.core.agent.AIAgent
+import ai.koog.agents.core.agent.config.AIAgentConfig
+import ai.koog.agents.core.tools.ToolRegistry
+import ai.koog.agents.core.tools.reflect.tools
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.RequestMetaInfo
-import org.example.planning.DebateState
+import ai.koog.prompt.params.LLMParams
 import org.example.planning.generateMadPlan
 import org.example.planning.generateSimplePlan
 import org.example.tools.McpSessionManager
-import org.example.tools.ProofCheckResponse
 import org.example.tools.RocqMcpToolSet
 import org.example.tools.RocqProofSessionManager
 import org.example.utils.extractPropFromJsonString
 import org.example.tools.getToolSummary
+import org.example.tools.retrieveContextPremises
 import org.example.utils.PlanningType
 import org.example.utils.ResolvedAgentConfig
 import org.example.utils.generateWithPrompt
@@ -58,7 +60,8 @@ class RocqStarAgent(
                 targetPath,
                 sortedPlans,
                 toolsSummary,
-                sessionManager
+                sessionManager,
+                mcpTools
             )
         }
     }
@@ -69,6 +72,7 @@ class RocqStarAgent(
         plans: List<String>,
         toolsSummary: String,
         sessionManager: RocqProofSessionManager,
+        mcpTools: RocqMcpToolSet,
     ): GenerationResult {
         var executionHistorySummary: String? = null
 
@@ -83,7 +87,8 @@ class RocqStarAgent(
                 theoremStatement,
                 targetPath,
                 toolsSummary,
-                sessionManager
+                sessionManager,
+                mcpTools
             )
             if (execResult.isSuccessful) {
                 return GenerationResult(true, execResult.completeProof)
@@ -100,11 +105,22 @@ class RocqStarAgent(
         theoremStatement: String,
         targetPath: String,
         toolsSummary: String,
-        sessionManager: RocqProofSessionManager
+        sessionManager: RocqProofSessionManager,
+        mcpTools: RocqMcpToolSet,
     ): PlanExecutionResult {
-        val similarProofs = retrieveContextPremises(targetPath, sessionManager)
+        val similarProofs = retrieveContextPremises(
+            targetPath,
+            sessionManager,
+            agentConfig.maximumPremisesFromRanker,
+            logger
+        )
 
-        val executorBasePrompt = prompt("executor-prompt") {
+        val executorBasePrompt = prompt(
+            "executor-prompt",
+            params = LLMParams(
+                temperature = agentConfig.generators.executor.temperature,
+            ),
+        ) {
             system(executionSystemPrompt(theoremStatement, targetPath))
             user(executorUserMessage(theoremStatement, targetPath))
             if (summary != null) {
@@ -118,79 +134,35 @@ class RocqStarAgent(
             )
         }
 
-        val executionState = PlanExecutionState(executorBasePrompt, toolsSummary, plan)
-
-//        return getExecutorSubgraphStrategy(executionState)
-        return PlanExecutionResult(
-            false,
-            prompt("test") { user("") },
-            ""
+        val initialExecutionState = PlanExecutionState(
+            theoremStatement,
+            targetPath,
+            executorBasePrompt,
+            toolsSummary,
+            plan,
+            sessionManager
         )
-    }
 
-    /**
-     * Preparatory thinking on the output of the ranking
-     */
-    suspend fun getSimilarProofsFromFile(
-        filePath: String,
-        sessionManager: RocqProofSessionManager,
-    ): String {
-        val premises = retrieveContextPremises(filePath, sessionManager)
-        val theoremState = sessionManager.getSessionTheorem()
-
-        val systemMessage = "You are a proficient Rocq programmer"
-        val userMessage = "The current theorem state is ${theoremState.prettyPrint()}\n" +
-                "List tactics, ideas, theorems and proof parts you can borrow to advance our proof. " +
-                "(Do not call any tools.) Here are some similar proofs to the goal of after valid proof prefix:" +
-                "\n\n${premises.asString()}\n\n"
-
-        return generateWithPromptString(
-            systemMessage,
-            userMessage,
-            agentConfig.generators.similarTheoremsAnalyzer,
-            executor,
-        )
-    }
-
-    /**
-     * This method does context retrieval in the file, by exploring other defined theorems
-     * and ranking them according to the chosen ranker. By default, it uses RocqStarRanker.
-     * This behavior is defined in /src/agentServer/controllers/coqProjectController.ts file
-     * of the MCP/Rocq-server project.
-     */
-    fun retrieveContextPremises(
-        filePath: String,
-        sessionManager: RocqProofSessionManager,
-    ): SimilarTheorems {
-        val currentGoals = sessionManager.currentGoals
-        // The state in Rocq is described as a list of goals, we iterate over goals,
-        // for each of them we fetch theorems with similar goals, and return the concatenated list
-
-        require(currentGoals != null ) { "Coq Project server returned goals = null" }
-        if (currentGoals.isNotEmpty()) {
-            logger.warning("WARNING: Observed state with no goals")
-        }
-
-        val premiseNames = mutableListOf<String>()
-        for (goal in currentGoals) {
-            val premises = sessionManager.getPremises(
-                goal,
-                filePath,
-                agentConfig.maximumPremisesFromRanker
+        val agent = AIAgent(
+            promptExecutor = executor,
+            strategy = rocqStarExecutorStrategy(agentConfig, logger),
+            toolRegistry = ToolRegistry {
+                tools(mcpTools)
+            },
+            agentConfig = AIAgentConfig(
+                prompt = executorBasePrompt,
+                model = agentConfig.generators.executor.profile,
+                // We manage iterations on our own, therefore here maxAgentIterations ~= INF
+                maxAgentIterations = 1000,
             )
-            premiseNames.addAll(premises.premises)
-        }
+        )
 
-        return premiseNames.map { theoremName ->
-            val theorem = sessionManager.getTheorem(filePath, theoremName)
-            Theorem(theorem.theoremStatement, theorem.theoremProof)
-        }
+        return agent.run(initialExecutionState)
     }
 
     suspend fun summarizePlanExecutionHistory(history: Prompt): String {
         val summarizerUserRequest = "Summarize **why** the proof attempt failed, in 6-8 concise bullet points."
         // Map all systemMessages apart from the first one to user messages
-        // TODO: Figure out whether we still need that
         val refinedHistory = history.withMessages { messages ->
             messages.mapIndexed { index, m ->
                 if (m.role == Message.Role.System && index > 0) {
@@ -315,9 +287,12 @@ data class Theorem(
 )
 
 data class PlanExecutionState(
+    val theoremStatement: String,
+    val targetPath: String,
     val prompt: Prompt,
     val toolsSummary: String,
     val currentPlan: String,
+    val proofSessionManager: RocqProofSessionManager,
     val lastToolCall: Message.Tool.Call? = null,
     val numberToolCalls: Int = 0,
     val failedProofChecksInARow: Int = 0,

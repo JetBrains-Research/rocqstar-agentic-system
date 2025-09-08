@@ -2,6 +2,7 @@ package org.example
 
 import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
 import kotlinx.coroutines.runBlocking
+import org.example.agent.RocqStarAgent
 import org.example.generation.GrazieConfig
 import org.example.generation.simpleGrazieExecutor
 import org.example.tools.McpSessionManager

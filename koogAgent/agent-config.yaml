@@ -6,10 +6,12 @@ mcp_server_url: "http://localhost:3001/mcp"
 
 backend: "grazie" # "grazie" | "openai"
 planning_type: "simple" # "mad" (multi-agentic-debates) | "simple"
-mad_rounds_number: 2
+
 how_many_plans_to_generate: 3
 how_many_best_plans_to_execute: 3
 maximum_premises_from_ranker: 20
+allowed_failed_proof_checks_in_row: 5
+total_allowed_tool_calls: 20
 
 # Default model setup. When no parameter is specified in the model
 # configuration, it is resolved to a default value
@@ -27,6 +29,7 @@ planning:
     temperature: ""
     profile: ""
   mad_planning:
+    mad_rounds_number: 2
     pro_plan_model:
       max_tokens_to_sample: ""
       temperature: ""
