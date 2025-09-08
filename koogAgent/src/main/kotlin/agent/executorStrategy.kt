@@ -31,14 +31,17 @@ fun rocqStarExecutorStrategy(
     return strategy("executor-strategy") {
         val nodeCallExecutorModel by executorModelCall(
             "send-input-to-executor-model",
-            agentConfig.generators.executor
+            agentConfig.generators.executor,
+            logger,
         )
         val nodeExecuteTool by nodeExecuteTool(
             "execute-tool",
+            logger,
         )
         val criticModelCall by executorModelCall(
             "send-input-to-critic-model",
             agentConfig.generators.proofProgressCritic,
+            logger,
             canCallTools = false,
             buildPrompt = { state ->
                 state.prompt.messages + userWithMeta(
@@ -58,6 +61,7 @@ fun rocqStarExecutorStrategy(
         val replanModelCall by executorModelCall(
             "send-input-to-replanning-model",
             agentConfig.generators.replanner,
+            logger,
             canCallTools = false,
             buildPrompt = { state ->
                 state.prompt.messages + userWithMeta(
@@ -73,7 +77,7 @@ fun rocqStarExecutorStrategy(
             applyResponse = { st, response ->
                 prompt(st.prompt) {
                     user(
-                        "I have refined the plan based on the current proof progress: $response\n" +
+                        "I have refined the plan based on the current proof progress: ${response.content}\n" +
                                 "Now continue with following this plan and calling tools"
                     )
                 }
@@ -83,6 +87,7 @@ fun rocqStarExecutorStrategy(
         val getSimilarProofs by executorModelCall(
             "force-similar-proofs-from-file",
             agentConfig.generators.similarTheoremsAnalyzer,
+            logger,
             canCallTools = false,
             buildPrompt = { state ->
                 val premises = retrieveContextPremises(
@@ -103,13 +108,14 @@ fun rocqStarExecutorStrategy(
                 )
             },
             applyResponse = { st, response ->
-                prompt(st.prompt) { user(response) }
+                prompt(st.prompt) { user(response.content) }
             }
         )
 
         val summarizerNode by executorModelCall(
             "summarizer-model-call",
             agentConfig.generators.summarizer,
+            logger,
             canCallTools = false,
             buildPrompt = { state ->
                 // TODO: Here we call the messagesToSummarize twice, which indeed
@@ -182,12 +188,25 @@ fun rocqStarExecutorStrategy(
 
         // If the history is too long, summarize messages
         edge(nodeExecuteTool forwardTo summarizerNode
-            onCondition { st -> st.prompt.messages.size > MAX_MESSAGES_BEFORE_SUMMARIZE }
+                onCondition { st -> st.prompt.messages.size > MAX_MESSAGES_BEFORE_SUMMARIZE }
         )
-        edge(nodeExecuteTool forwardTo summarizerNode
+        edge(nodeCallExecutorModel forwardTo summarizerNode
                 onCondition { st -> st.prompt.messages.size > MAX_MESSAGES_BEFORE_SUMMARIZE }
         )
         edge(summarizerNode forwardTo nodeCallExecutorModel)
+
+        // I am not sure how is branch-priority implemented in koog,
+        // therefore, currently it is like this in case conditions are not checked in the order of declarations
+        // TODO: fix
+        edge(nodeExecuteTool forwardTo nodeCallExecutorModel
+                onCondition { st ->
+                    // Check that any other branch doesn't suit
+                    st.prompt.messages.size <= MAX_MESSAGES_BEFORE_SUMMARIZE &&
+                            st.failedProofChecksInARow < agentConfig.allowedFailedProofChecks &&
+                            st.numberToolCalls < agentConfig.totalAllowedToolCalls &&
+                            st.finishedProof == null
+                }
+        )
     }
 }
 
@@ -228,12 +247,15 @@ private fun messagesToSummarize(state: PlanExecutionState): Pair<List<Message>, 
 fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
     name: String,
     withProfile: ResolvedModelConfig,
+    logger: Logger,
     canCallTools: Boolean = true,
     buildPrompt: (PlanExecutionState) -> List<Message> = { it.prompt.messages },
     // Default way to manage the response of the assistant: push it to the end
-    // of the message history
-    applyResponse: (PlanExecutionState, String) -> Prompt = { st, response ->
-        prompt(st.prompt) { assistant(response) }
+    // of the message history. When canCallTools = true and applyResponse redefines
+    // the behavior, declining the tool-call, UB occurs; however, that doesn't make
+    // sense semantically
+    applyResponse: (PlanExecutionState, Message) -> Prompt = { st, response ->
+        prompt(st.prompt) { message(response) }
     }
 ): AIAgentNodeDelegate<PlanExecutionState, PlanExecutionState> =
     node(name) { st ->
@@ -246,6 +268,8 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
                 )
             }
 
+            logger.info("Retrieving context with prompt: $prompt")
+
             val response = if (canCallTools) {
                 requestLLM()
             } else {
@@ -255,15 +279,18 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
             // then we will successfully cast it and manage in the next node
             val toolAction = response as? Message.Tool.Call
 
+            logger.info("Received response: $response, toolAction: $toolAction")
+
             st.copy(
-                prompt = applyResponse(st, response.content),
+                prompt = applyResponse(st, response),
                 lastToolCall = toolAction,
             )
         }
     }
 
 fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
-    name: String? = null
+    name: String,
+    logger: Logger,
 ): AIAgentNodeDelegate<PlanExecutionState, PlanExecutionState> =
     node(name) { st ->
         require(st.lastToolCall != null) {
@@ -274,9 +301,13 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
         // Additional checks in case the tool-call
         val (failedChecks, finishedProof, explanationMessage) =
             if (st.lastToolCall.tool == CHECK_PROOF_TOOL_NAME) {
+                logger.info(
+                    "checkProof tool-call resulted in content: -${toolCallResult.content}-, " +
+                            "result: *${toolCallResult.result}*"
+                )
                 val checkProofResult = Json.decodeFromString(
                     ProofCheckResponse.serializer(),
-                    st.lastToolCall.content
+                    toolCallResult.content
                 )
 
                 // We parse the result of the checkProof tool by ourselves to
@@ -297,12 +328,20 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
                 Triple(st.failedProofChecksInARow, null, null)
             }
 
+        logger.info(
+            """
+                Name of the tool: ${st.lastToolCall.tool}
+                Current number of failed checks: $failedChecks
+                Proof is $finishedProof, explanation message: $explanationMessage
+            """.trimIndent()
+        )
+
         st.copy(
             prompt = prompt(st.prompt) {
-                // For checkProof tool we return the output as a user's message, otherwise
-                // as tool response
-                explanationMessage?.let { user(it) }
-                    ?: tool { result(toolCallResult) }
+                // For checkProof tool we substitute the response of the MCP to our explanation
+                tool {
+                    result(explanationMessage?.let { toolCallResult.copy(content = it) } ?: toolCallResult)
+                }
             },
             lastToolCall = null,
             numberToolCalls = st.numberToolCalls + 1,

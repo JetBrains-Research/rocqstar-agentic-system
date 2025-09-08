@@ -51,15 +51,6 @@ class RocqProofSessionManager(
         // Actually it is done in the call, but kotlin type-checker cannot
         // infer it
         currentGoals = checkProofResponse.goals
-
-        logger.info(
-            """
-                Initialized a proof session for theorem $theoremName
-                Session ID is $proofSessionId
-                Current proof hash is $proofHash
-                Goals are ${currentGoals?.mapIndexed { index, string -> "$index:**$string**" }}.
-            """.trimIndent()
-        )
     }
 
     /**

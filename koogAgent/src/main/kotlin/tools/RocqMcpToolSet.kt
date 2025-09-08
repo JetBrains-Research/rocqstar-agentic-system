@@ -90,11 +90,7 @@ class RocqMcpToolSet(
     fun checkProof(
         @LLMDescription("The proof to validate. It should start with 'Proof.'")
         proof: String,
-    ): String {
-        val checkProofResDes = proofSessionManager.checkProof(proof)
-        val jsonString = Json.encodeToString(ProofCheckResponse.serializer(), checkProofResDes)
-        return jsonString
-    }
+    ) = proofSessionManager.checkProof(proof)
 
     @Tool
     @LLMDescription("Retrieves similar proofs for a goal in a file")

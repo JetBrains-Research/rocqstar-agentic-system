@@ -67,7 +67,7 @@ fun explainCheckProofResponse(response: ProofCheckResponse): ProofCheckResponseE
     var isProofComplete = false
 
     if (!response.success) {
-        explanation = if (response.error != null) {
+        explanation = if (response.error == null) {
             "Unfortunately, the last proof you checked is not valid:\n" +
                     "${response.attemptedProof}\n" +
                     "It fails with the error: ${response.message}\n" +

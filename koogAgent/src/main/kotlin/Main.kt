@@ -1,5 +1,8 @@
 package org.example
 
+import ai.koog.agents.core.dsl.builder.*
+import ai.koog.agents.core.dsl.extension.*
+
 import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
 import kotlinx.coroutines.runBlocking
 import org.example.agent.RocqStarAgent
@@ -22,6 +25,19 @@ fun main() {
             // TODO: Support non-grazie backend with different LLM providers
             simpleOpenAIExecutor(agentConfig.apiTokens.openAiApiToken)
         }
+
+//        val myStrategy = strategy<String, String>("my-strategy") {
+//            val nodeCallLLM by nodeLLMRequest()
+//            val executeToolCall by nodeExecuteTool()
+//            val sendToolResult by nodeLLMSendToolResult()
+//
+//            edge(nodeStart forwardTo nodeCallLLM)
+//            edge(nodeCallLLM forwardTo nodeFinish onAssistantMessage { true })
+//            edge(nodeCallLLM forwardTo executeToolCall onToolCall { true })
+//            edge(executeToolCall forwardTo sendToolResult)
+//            edge(sendToolResult forwardTo nodeFinish onAssistantMessage { true })
+//            edge(sendToolResult forwardTo executeToolCall onToolCall { true })
+//        }
 
         val theoremName = "loceq_same_tid"
         val targetPath = "src/basic/Events.v"

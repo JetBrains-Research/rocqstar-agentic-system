@@ -129,7 +129,7 @@ class RocqStarAgent(
             }
             user(
                 "You should prove the theorem. Here is the plan you should follow. Plan:\n" +
-                        "$plan\n" +
+                        "$plan\n\n---\n" +
                         "Here are the theorems whose proofs can be similar to the target proof:\n" +
                         similarProofs.asString()
             )
@@ -158,6 +158,7 @@ class RocqStarAgent(
             )
         )
 
+        logger.info("Starting execution of an agent")
         return agent.run(initialExecutionState)
     }
 
