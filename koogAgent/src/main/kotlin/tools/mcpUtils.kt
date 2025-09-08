@@ -35,7 +35,7 @@ fun retrieveContextPremises(
     // for each of them we fetch theorems with similar goals, and return the concatenated list
 
     require(currentGoals != null ) { "Coq Project server returned goals = null" }
-    if (currentGoals.isNotEmpty()) {
+    if (currentGoals.isEmpty()) {
         logger.warning("Observed state with no goals")
     }
 
@@ -48,6 +48,8 @@ fun retrieveContextPremises(
         )
         premiseNames.addAll(premises.premises)
     }
+
+    logger.info("Retrieved ${premiseNames.size} premises for $filePath")
 
     return premiseNames.map { theoremName ->
         val theorem = sessionManager.getTheorem(filePath, theoremName)

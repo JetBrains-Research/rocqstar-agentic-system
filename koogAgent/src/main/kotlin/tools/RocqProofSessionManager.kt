@@ -5,7 +5,11 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import kotlinx.serialization.json.Json
+import org.example.agent.RocqStarAgent
 import java.net.URI
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.logging.Logger
 
 /**
  * This class manages the abstraction of Coq-proof session.
@@ -25,9 +29,10 @@ class RocqProofSessionManager(
     private val theoremName: String,
     private val targetTheoremPath: String,
     private val mcpSessionManager: McpSessionManager,
+    private val logger: Logger = Logger.getLogger(RocqProofSessionManager::class.java.name),
     val projectServerBaseUrl: String = "http://localhost:8000/rest/document",
-    private val mcpServerBaseUrl: String = "http://localhost:3001/mcp",
-    val client: HttpClient = HttpClient.newHttpClient()
+    val mcpServerBaseUrl: String = "http://localhost:3001/mcp",
+    val client: HttpClient = HttpClient.newHttpClient(),
 ): AutoCloseable {
     val proofSessionId: String
     var proofHash: String
@@ -46,6 +51,15 @@ class RocqProofSessionManager(
         // Actually it is done in the call, but kotlin type-checker cannot
         // infer it
         currentGoals = checkProofResponse.goals
+
+        logger.info(
+            """
+                Initialized a proof session for theorem $theoremName
+                Session ID is $proofSessionId
+                Current proof hash is $proofHash
+                Goals are ${currentGoals?.mapIndexed { index, string -> "$index:**$string**" }}.
+            """.trimIndent()
+        )
     }
 
     /**
@@ -126,6 +140,7 @@ class RocqProofSessionManager(
     )
 
     fun checkProof(proof: String): ProofCheckResponse {
+        logger.info("Checking proof $proof")
         val response = coqProjectRequest<ProofCheckResponse>(
             "check-proof",
             mapOf(
@@ -198,11 +213,27 @@ class RocqProofSessionManager(
         }
     }
 
-    private fun buildUriWithParams(baseUrl: String, path: String, params: ServerCallParameters): URI {
+    private fun buildUriWithParams(
+        baseUrl: String,
+        path: String,
+        params: ServerCallParameters
+    ): URI {
+        val charset = StandardCharsets.UTF_8
         val query = params.entries.joinToString("&") { (k, v) ->
-            "$k=${v.asString()}"
+            val encodedKey = URLEncoder.encode(k, charset)
+            val encodedValue = URLEncoder.encode(v.asString(), charset)
+            "$encodedKey=$encodedValue"
         }
-        val fullUrl = if (query.isEmpty()) "$baseUrl/$path" else "$baseUrl/$path?$query"
+
+        val normalizedBase = baseUrl.trimEnd('/')
+        val normalizedPath = path.trimStart('/')
+
+        val fullUrl = if (query.isEmpty()) {
+            "$normalizedBase/$normalizedPath"
+        } else {
+            "$normalizedBase/$normalizedPath?$query"
+        }
+
         return URI.create(fullUrl)
     }
 

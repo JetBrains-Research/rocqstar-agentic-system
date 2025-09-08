@@ -40,9 +40,10 @@ class RocqStarAgent(
             theoremName,
             targetPath,
             mcpSessionManager,
+            logger,
             agentConfig.coqProjectServerBaseUrl,
             agentConfig.mcpServerBaseUrl,
-            httpClient
+            httpClient,
         )
 
         proofSessionManager.use { sessionManager ->
