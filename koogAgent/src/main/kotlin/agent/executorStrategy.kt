@@ -289,7 +289,6 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
             // If the response from the assistant is a tool-call,
             // then we will successfully cast it and manage in the next node
             val toolAction = response as? Message.Tool.Call
-
             val newPrompt = applyResponse(st, response)
 
             st.copy(
@@ -350,9 +349,8 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
 
         logger.info(
             """
-            |Name of the tool: ${st.lastToolCall.tool}
-            |Current number of failed checks: $failedChecks
-            |Proof is $finishedProof, explanation message: $explanationMessage
+            |Name of the tool: ${st.lastToolCall.tool}, params: ${st.lastToolCall.content}
+            |Current number of failed checks: $failedChecks, number of tool-calls: ${st.numberToolCalls} 
             """.trimMargin()
         )
 

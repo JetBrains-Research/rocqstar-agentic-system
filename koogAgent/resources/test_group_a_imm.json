@@ -1,9 +1,5 @@
 {
   "src/basic/Events.v": [
-    "same_label_u2v_val",
-    "same_lab_u2v_mod",
-    "is_f_val",
-    "same_lab_u2v_is_ra",
-    "same_lab_u2v_is_xacq"
+    "loceq_same_tid"
   ]
 }
