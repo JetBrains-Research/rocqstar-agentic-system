@@ -5,7 +5,6 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import kotlinx.serialization.json.Json
-import org.example.agent.RocqStarAgent
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -83,7 +82,12 @@ class RocqProofSessionManager(
             .build()
 
         val resp = client.send(req, HttpResponse.BodyHandlers.ofString())
-        return resp.body()
+        val responseBody = resp.body()
+        return if (body.length >= MAX_MCP_RESPONSE_SYMBOLS) {
+            responseBody.take(MAX_MCP_RESPONSE_SYMBOLS)
+        } else {
+            responseBody
+        }
     }
 
     /**
@@ -143,8 +147,11 @@ class RocqProofSessionManager(
 
         // Check proof is the only request that returns the updated goals
         // Along with initializeSession, it is the only request, that returns proofSessionHash
-        proofHash = response.hash
-        currentGoals = response.goals
+        // Sometimes, when an error during checking the proof occurs on the server side,
+        // the returned proof hash could be null
+        response.hash?.let { proofHash = it }
+        // Also, currentGoals can be returned null
+        response.goals?.let { currentGoals = it }
 
         return response
     }
@@ -273,3 +280,4 @@ sealed class BodyParam {
 }
 
 typealias ServerCallParameters = Map<String, BodyParam>
+const val MAX_MCP_RESPONSE_SYMBOLS = 1000

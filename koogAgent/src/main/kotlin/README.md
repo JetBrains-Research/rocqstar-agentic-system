@@ -1,0 +1,8 @@
+# RocqStar agent 
+
+The first version of the agent was written using a private framework called IDEFormer. We have afterward rewritten it into the new [Koog](https://docs.koog.ai) framework by JetBrains. Koog is a Kotlin-based framework designed to build and run AI agents entirely in idiomatic Kotlin.
+
+On the top-level, the agent communicates to the Rocq-MCP server and Rocq Project server and generates the proofs for theorems. A detailed guide on running the MCP server might be found in [its repo](https://github.com/JetBrains-Research/rocqstar-agentic-system), but here is a short summary of the required steps, before running the agent:
+1. Choose a project you want to run your agent on. The project might be built with Opam or Nix. Both should work. **_tl;dr_** your goal now is to run the MCP server so that it correctly resolves the path to the coq-LSP server. If you are using Nix, you need to activate the shell using `nix-shell`, build the project using `make`, and then run the Rocq-MCP server in that shell. If you have completed the steps from the [Rocq-MCP repo](https://github.com/JetBrains-Research/rocqstar-agentic-system), you should be able to run `coqpilot-server`.     
+2. If you are using the RocqStar-retrieval mechanism (which is used in the Rocq-mcp) by default, you should complete the steps in the readme of the [RocqStar retriever repo](https://github.com/JetBrains-Research/rocqstar-rag), specifically, run the ranker server, described [here](https://github.com/JetBrains-Research/rocqstar-rag/blob/main/ranker-server/README.md). 
+3. After you run all the components, simply build this project using gradle and run `Main.kt`.

@@ -22,8 +22,11 @@ data class AgentConfig private constructor(
     val coqProjectServerBaseUrl: String,
     @param:JsonProperty("mcp_server_url")
     val mcpServerBaseUrl: String,
-    val backend: Backend,
 
+    @param:JsonProperty("path_to_theorems")
+    val pathToTheorems: String,
+
+    val backend: Backend,
     @param:JsonProperty("how_many_plans_to_generate")
     val numPlansToGenerate: Int,
     @param:JsonProperty("how_many_best_plans_to_execute")
@@ -68,6 +71,7 @@ data class AgentConfig private constructor(
         agentVersion = agentVersion,
         coqProjectServerBaseUrl = coqProjectServerBaseUrl,
         mcpServerBaseUrl = mcpServerBaseUrl,
+        pathToTheorems = pathToTheorems,
         backend = backend,
         numPlansToGenerate = numPlansToGenerate,
         numBestPlansToExec = numBestPlansToExec,
@@ -88,6 +92,7 @@ data class ResolvedAgentConfig(
     val agentVersion: String,
     val coqProjectServerBaseUrl: String,
     val mcpServerBaseUrl: String,
+    val pathToTheorems: String,
     val backend: Backend,
     val numPlansToGenerate: Int,
     val numBestPlansToExec: Int,

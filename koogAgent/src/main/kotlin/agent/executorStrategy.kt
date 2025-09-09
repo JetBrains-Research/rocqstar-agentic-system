@@ -49,15 +49,15 @@ fun rocqStarExecutorStrategy(
                 // of the history other than described in the `applyResponse` block
                 state.prompt.messages + userWithMeta(
                     "Critique the last actions under overall plan:" +
-                    wrapPromptElement(state.currentPlan, "plan") +
-                    "Highlight deviations and suggest improvements. " +
-                    "Think about what context should be gathered to prove the theorem. " +
-                    "Remember you have access to other files and theorems. " +
-                    "If you propose to use specific tool write its name as `tool_name`. " +
-                    "Propose to continue by applying tactic by tactic when you think it is useful. " +
-                    "Here is the description of the tools:" +
-                    wrapPromptElement(state.toolsSummary, "tools") +
-                    "Do NOT CALL TOOLS."
+                            wrapPromptElement(state.currentPlan, "plan") +
+                            "Highlight deviations and suggest improvements. " +
+                            "Think about what context should be gathered to prove the theorem. " +
+                            "Remember you have access to other files and theorems. " +
+                            "If you propose to use specific tool write its name as `tool_name`. " +
+                            "Propose to continue by applying tactic by tactic when you think it is useful. " +
+                            "Here is the description of the tools:" +
+                            wrapPromptElement(state.toolsSummary, "tools") +
+                            "Do NOT CALL TOOLS."
                 )
             }
         )
@@ -68,13 +68,13 @@ fun rocqStarExecutorStrategy(
             canCallTools = false,
             buildPrompt = { state ->
                 state.prompt.messages + userWithMeta(
-            "Refine the proof plan:" +
-                    wrapPromptElement(state.currentPlan, "plan") +
-                    "using the critique above and similar-proof insights. " +
-                    "Pay attention to what tools are proposed to be called. " +
-                    "Here is the description of the tools:" +
-                    wrapPromptElement(state.toolsSummary, "tools") +
-                    "Output **only** the updated plan in clear natural language."
+                    "Refine the proof plan:" +
+                            wrapPromptElement(state.currentPlan, "plan") +
+                            "using the critique above and similar-proof insights. " +
+                            "Pay attention to what tools are proposed to be called. " +
+                            "Here is the description of the tools:" +
+                            wrapPromptElement(state.toolsSummary, "tools") +
+                            "Output **only** the updated plan in clear natural language."
                 )
             },
             applyResponse = { st, response ->
@@ -106,11 +106,13 @@ fun rocqStarExecutorStrategy(
                     systemWithMeta("You are a proficient Rocq programmer"),
                     // TODO: Here state.theoremStatement is always the starting state of the theorem,
                     // while it should rather be the theorem constructed from the current state
-                    userWithMeta("The current theorem statement is ${state.theoremStatement}\n" +
-                            "List tactics, ideas, theorems and proof parts you can borrow to advance our proof. " +
-                            "(Do not call any tools.) Here are some similar proofs to the goal of after valid proof prefix:" +
-                            wrapPromptElement(premises.asString()) +
-                            "Return some ideas on what of this can be helpful for proving the theorem."),
+                    userWithMeta(
+                        "The current theorem statement is ${state.theoremStatement}\n" +
+                                "List tactics, ideas, theorems and proof parts you can borrow to advance our proof. " +
+                                "(Do not call any tools.) Here are some similar proofs to the goal of after valid proof prefix:" +
+                                wrapPromptElement(premises.asString()) +
+                                "Return some ideas on what of this can be helpful for proving the theorem."
+                    ),
                 )
             },
             applyResponse = { st, response ->
@@ -129,7 +131,7 @@ fun rocqStarExecutorStrategy(
                 val (toSummarize, _) = messagesToSummarize(state)
                 val jointToSummarize = toSummarize.joinToString("\n") { it.content }
                 val summarizerUserMessage =
-                    "Please produce a concise bullet-point summary of the proof progress so far (4-5) bullet points:\n\n" +
+                    "Please produce a concise bullet-point summary of the proof progress so far (4-5) bullet points:" +
                             wrapPromptElement(jointToSummarize, "to summarize") +
                             "DO NOT CALL TOOLS."
 
@@ -139,12 +141,24 @@ fun rocqStarExecutorStrategy(
                 )
             },
             applyResponse = { state, response ->
-                prompt("updated-prompt-after-summary") {
-                    val (_, remainingMessages) = messagesToSummarize(state)
-                    listOf(userWithMeta("Conversation summary so far:\n$response")) + remainingMessages
-                }
+                val (_, remainingMessages) = messagesToSummarize(state)
+                val newMessages = listOf(userWithMeta("Conversation summary so far:\n$response")) +
+                        remainingMessages
+
+                state.prompt.copy(
+                    messages = newMessages,
+                )
             }
         )
+
+        val appendUserMessage by node<PlanExecutionState, PlanExecutionState>("append-act-message") { st ->
+            st.copy(
+                prompt = prompt(st.prompt) {
+                    user("Please proof the theorem. " +
+                            "The process will be finished once you call checkProof with a valid proof.")
+                }
+            )
+        }
 
         val extractProofResult by node<PlanExecutionState, PlanExecutionResult>(
             "extract-proof-result"
@@ -165,14 +179,25 @@ fun rocqStarExecutorStrategy(
                     onCondition { st -> st.lastToolCall != null }
         )
 
+        // Sometimes the model returns a text message with its thoughts and doesn't proceed with tool-calls.
+        // To remind it to keep moving, we append a pre-defined user message and push the process further.
+        edge(
+            nodeCallExecutorModel forwardTo appendUserMessage
+                    onCondition { st ->
+                st.lastToolCall == null &&
+                        st.prompt.messages.last().role == Role.Assistant
+            }
+        )
+        edge(appendUserMessage forwardTo nodeCallExecutorModel)
+
         // In case we exceeded the allowed tool-invocations or type-checked the valid proof,
         // we finish the execution
         edge(
             nodeExecuteTool forwardTo extractProofResult
                     onCondition { st ->
-                        st.numberToolCalls >= agentConfig.totalAllowedToolCalls ||
+                st.numberToolCalls >= agentConfig.totalAllowedToolCalls ||
                         st.finishedProof != null
-                    }
+            }
         )
         // Extract the output and exit
         edge(extractProofResult forwardTo nodeFinish)
@@ -182,8 +207,9 @@ fun rocqStarExecutorStrategy(
         edge(
             nodeExecuteTool forwardTo criticModelCall
                     onCondition { st ->
-                        st.failedProofChecksInARow >= agentConfig.allowedFailedProofChecks
-                    }
+                st.numberToolCalls < agentConfig.totalAllowedToolCalls &&
+                st.failedProofChecksInARow >= agentConfig.allowedFailedProofChecks
+            }
         )
         // Right after the critic, we fetch similar proofs to the current goal,
         // as we believe that the model is not progressing with the target proof.
@@ -194,25 +220,28 @@ fun rocqStarExecutorStrategy(
         edge(replanModelCall forwardTo nodeCallExecutorModel)
 
         // If the history is too long, summarize messages
-        edge(nodeExecuteTool forwardTo summarizerNode
-                onCondition { st -> st.prompt.messages.size > MAX_MESSAGES_BEFORE_SUMMARIZE }
+        edge(
+            nodeExecuteTool forwardTo summarizerNode
+                    onCondition { st -> st.prompt.messages.size > MAX_MESSAGES_BEFORE_SUMMARIZE }
         )
-        edge(nodeCallExecutorModel forwardTo summarizerNode
-                onCondition { st -> st.prompt.messages.size > MAX_MESSAGES_BEFORE_SUMMARIZE }
+        edge(
+            nodeCallExecutorModel forwardTo summarizerNode
+                    onCondition { st -> st.prompt.messages.size > MAX_MESSAGES_BEFORE_SUMMARIZE }
         )
         edge(summarizerNode forwardTo nodeCallExecutorModel)
 
         // I am not sure how is branch-priority implemented in koog,
         // therefore, currently it is like this in case conditions are not checked in order of declarations
         // TODO: fix
-        edge(nodeExecuteTool forwardTo nodeCallExecutorModel
-                onCondition { st ->
-                    // Check that any other branch doesn't suit
-                    st.prompt.messages.size <= MAX_MESSAGES_BEFORE_SUMMARIZE &&
-                            st.failedProofChecksInARow < agentConfig.allowedFailedProofChecks &&
-                            st.numberToolCalls < agentConfig.totalAllowedToolCalls &&
-                            st.finishedProof == null
-                }
+        edge(
+            nodeExecuteTool forwardTo nodeCallExecutorModel
+                    onCondition { st ->
+                // Check that any other branch doesn't suit
+                st.prompt.messages.size <= MAX_MESSAGES_BEFORE_SUMMARIZE &&
+                        st.failedProofChecksInARow < agentConfig.allowedFailedProofChecks &&
+                        st.numberToolCalls < agentConfig.totalAllowedToolCalls &&
+                        st.finishedProof == null
+            }
         )
     }
 }
@@ -252,8 +281,6 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
                 )
             }
 
-            logger.info("Retrieving context with prompt: $prompt")
-
             val response = if (canCallTools) {
                 requestLLM()
             } else {
@@ -263,11 +290,15 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
             // then we will successfully cast it and manage in the next node
             val toolAction = response as? Message.Tool.Call
 
-            logger.info("Received response: $response, toolAction: $toolAction")
+            val newPrompt = applyResponse(st, response)
 
             st.copy(
-                prompt = applyResponse(st, response),
-                lastToolCall = toolAction,
+                prompt = newPrompt,
+                lastToolCall = toolAction?.let {
+                    it.copy(
+                        content = mapEmptyJsonContent(it.content),
+                    )
+                },
             )
         }
     }
@@ -362,7 +393,7 @@ private fun messagesToSummarize(state: PlanExecutionState): Pair<List<Message>, 
             messagesToSummarize.add(message)
         } else {
             val lastAddedMessage = messagesToSummarize.last()
-            if (lastAddedMessage.role == Role.Tool) {
+            if (lastAddedMessage.role == Role.Tool && lastAddedMessage is Message.Tool.Call) {
                 messagesToSummarize.add(message)
             }
             break
@@ -374,5 +405,5 @@ private fun messagesToSummarize(state: PlanExecutionState): Pair<List<Message>, 
 }
 
 const val CHECK_PROOF_TOOL_NAME = "checkProof"
-const val MAX_MESSAGES_BEFORE_SUMMARIZE = 60
-const val KEEP_LAST_K_MESSAGES = 20
+const val MAX_MESSAGES_BEFORE_SUMMARIZE = 30
+const val KEEP_LAST_K_MESSAGES = 10

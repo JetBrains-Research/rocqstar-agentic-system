@@ -11,3 +11,14 @@ fun wrapPromptElement(promptPart: String, tag: String? = null): String {
 
     return "$header$promptPart$footer"
 }
+
+/**
+ * Sometimes for tool-calls with empty signatures, LLM returns empty string as
+ * content. Koog fails with an exception, as it tries to deserialize the empty string.
+ * We map empty-string content into an empty Json
+ */
+fun mapEmptyJsonContent(jsonString: String): String {
+    return jsonString.ifEmpty {
+        "{}"
+    }
+}

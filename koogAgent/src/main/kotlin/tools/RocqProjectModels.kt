@@ -6,7 +6,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
@@ -30,7 +29,7 @@ data class TheoremResponse(
 data class ProofCheckResponse(
     val success: Boolean,
     val message: String,
-    val hash: String,
+    val hash: String? = null,
     val proof: String? = null,
     @Serializable(with = GoalsAsStringListSerializer::class)
     val goals: List<String>? = null,

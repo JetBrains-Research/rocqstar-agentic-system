@@ -5,6 +5,7 @@ import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import org.example.agent.SimilarTheorems
 import org.example.agent.Theorem
+import org.example.agent.wrapPromptElement
 import java.util.logging.Logger
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.findAnnotation
@@ -34,7 +35,7 @@ fun retrieveContextPremises(
     // The state in Rocq is described as a list of goals, we iterate over goals,
     // for each of them we fetch theorems with similar goals, and return the concatenated list
 
-    require(currentGoals != null ) { "Coq Project server returned goals = null" }
+    require(currentGoals != null) { "Coq Project server returned goals = null" }
     if (currentGoals.isEmpty()) {
         logger.warning("Observed state with no goals")
     }
@@ -71,7 +72,8 @@ fun explainCheckProofResponse(response: ProofCheckResponse): ProofCheckResponseE
             "Unfortunately, the last proof you checked is not valid:\n" +
                     "${response.attemptedProof}\n" +
                     "It fails with the error: ${response.message}\n" +
-                    "But it has a valid prefix ${response.validPrefix}\n" +
+                    "But it has a valid prefix " +
+                    wrapPromptElement(response.validPrefix ?: "No valid prefix") +
                     "The goals after this prefix are ${response.goals}\n" +
                     "Please continue to prove the theorem taking the valid prefix into account"
         } else {
