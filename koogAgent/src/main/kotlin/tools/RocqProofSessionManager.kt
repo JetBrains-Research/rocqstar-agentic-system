@@ -62,16 +62,16 @@ class RocqProofSessionManager(
         val argsJson = finalArgs.toJson()
 
         val body = """
-        {
-          "jsonrpc": "2.0",
-          "method": "tools/call",
-          "params": {
-            "name": "$toolName",
-            "arguments": $argsJson
-          },
-          "id": ${mcpSessionManager.nextToolId}
-        }
-        """.trimIndent()
+        |{
+        |  "jsonrpc": "2.0",
+        |  "method": "tools/call",
+        |  "params": {
+        |    "name": "$toolName",
+        |    "arguments": $argsJson
+        |  },
+        |  "id": ${mcpSessionManager.nextToolId}
+        |}
+        """.trimMargin()
 
         val req = HttpRequest.newBuilder()
             .uri(URI.create(mcpServerBaseUrl))

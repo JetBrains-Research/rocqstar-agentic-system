@@ -125,13 +125,15 @@ class RocqStarAgent(
             system(executionSystemPrompt(theoremStatement, targetPath))
             user(executorUserMessage(theoremStatement, targetPath))
             if (summary != null) {
-                system("Summary of the previous proof attempts:\n$summary\nContinue theorem proving.")
+                system("Summary of the previous proof attempts:" +
+                        wrapPromptElement(summary, "summary") +
+                        "Continue theorem proving.")
             }
             user(
-                "You should prove the theorem. Here is the plan you should follow. Plan:\n" +
-                        "$plan\n\n---\n" +
-                        "Here are the theorems whose proofs can be similar to the target proof:\n" +
-                        similarProofs.asString()
+                "You should prove the theorem. Here is the plan you should follow. Plan:" +
+                        wrapPromptElement(plan, "plan") +
+                        "Here are the theorems whose proofs can be similar to the target proof:" +
+                        wrapPromptElement(similarProofs.asString())
             )
         }
 
@@ -226,8 +228,8 @@ class RocqStarAgent(
                 "You will get a theorem and one candidate plan. Rate its chance of success from 1 (low) to 10 (high). " +
                 "Output **only** valid JSON: {{\"reason\":\"...\", \"score\":<integer>}}"
         val userPrompt: (String) -> String = { plan ->
-            "Theorem: $theoremStatement\nPlan: $plan\n\nRespond with exactly: " +
-                    "{{\"reason\":\"...\", \"score\":<1–10>}}"
+            "Theorem: $theoremStatement\nPlan: ${wrapPromptElement(plan, "plan")}" +
+                    "Respond with exactly: {{\"reason\":\"...\", \"score\":<1–10>}}"
         }
 
         val scorePlan: suspend (String) -> Int = { plan ->
@@ -251,19 +253,19 @@ class RocqStarAgent(
     companion object {
         private val executionSystemPrompt: (String, String) -> String = { theoremStatement, filePath ->
             """
-                You are an expert Coq prover. Your mission is to produce a **correct**, **complete**, and **checkable** proof of the theorem  
-                `$theoremStatement` in file `$filePath`.
-
-                • **Follow the agreed plan** step by step.  
-                • **Never** use `admit` or unsound shortcuts.  
-                • **Always** emit valid JSON when calling a tool.  
-                • After each proof step, invoke the `check_proof` tool and validate its JSON response.  
-                  – On error: parse the error message, adjust your call, and retry.  
-                • Avoid unnecessary goal-focusing; prefer high-level tactics first.  
-                • Keep your proof scripts concise, clear, and directly type-checkable by Coq.
-
-                Begin now.
-            """.trimIndent()
+            |You are an expert Coq prover. Your mission is to produce a **correct**, **complete**, and **checkable** proof of the theorem  
+            |`$theoremStatement` in file `$filePath`.
+            |
+            |• **Follow the agreed plan** step by step.  
+            |• **Never** use `admit` or unsound shortcuts.  
+            |• **Always** emit valid JSON when calling a tool.  
+            |• After each proof step, invoke the `check_proof` tool and validate its JSON response.  
+            |  – On error: parse the error message, adjust your call, and retry.  
+            |• Avoid unnecessary goal-focusing; prefer high-level tactics first.  
+            |• Keep your proof scripts concise, clear, and directly type-checkable by Coq.
+            |
+            |Begin now.
+            """.trimMargin()
         }
 
         private val executorUserMessage: (String, String) -> String = { theoremStatement, filePath ->

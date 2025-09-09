@@ -44,16 +44,19 @@ fun rocqStarExecutorStrategy(
             logger,
             canCallTools = false,
             buildPrompt = { state ->
+                // Note that this message below is not appended to the execution history.
+                // Moreover, by default, executorModelCall doesn't modify the current state
+                // of the history other than described in the `applyResponse` block
                 state.prompt.messages + userWithMeta(
-                    "Critique the last actions under overall plan:\n" +
-                    "${state.currentPlan}\n" +
+                    "Critique the last actions under overall plan:" +
+                    wrapPromptElement(state.currentPlan, "plan") +
                     "Highlight deviations and suggest improvements. " +
                     "Think about what context should be gathered to prove the theorem. " +
                     "Remember you have access to other files and theorems. " +
                     "If you propose to use specific tool write its name as `tool_name`. " +
                     "Propose to continue by applying tactic by tactic when you think it is useful. " +
-                    "Here is the description of the tools:\n" +
-                    "${state.toolsSummary}\n" +
+                    "Here is the description of the tools:" +
+                    wrapPromptElement(state.toolsSummary, "tools") +
                     "Do NOT CALL TOOLS."
                 )
             }
@@ -65,12 +68,12 @@ fun rocqStarExecutorStrategy(
             canCallTools = false,
             buildPrompt = { state ->
                 state.prompt.messages + userWithMeta(
-            "Refine the proof plan:\n" +
-                    "${state.currentPlan}\n " +
+            "Refine the proof plan:" +
+                    wrapPromptElement(state.currentPlan, "plan") +
                     "using the critique above and similar-proof insights. " +
                     "Pay attention to what tools are proposed to be called. " +
-                    "Here is the description of the tools:\n" +
-                    "${state.toolsSummary}\n" +
+                    "Here is the description of the tools:" +
+                    wrapPromptElement(state.toolsSummary, "tools") +
                     "Output **only** the updated plan in clear natural language."
                 )
             },
@@ -101,10 +104,13 @@ fun rocqStarExecutorStrategy(
                 // a unique one, as similar proof analyzer doesn't look at the proof history
                 listOf<Message>(
                     systemWithMeta("You are a proficient Rocq programmer"),
+                    // TODO: Here state.theoremStatement is always the starting state of the theorem,
+                    // while it should rather be the theorem constructed from the current state
                     userWithMeta("The current theorem statement is ${state.theoremStatement}\n" +
                             "List tactics, ideas, theorems and proof parts you can borrow to advance our proof. " +
                             "(Do not call any tools.) Here are some similar proofs to the goal of after valid proof prefix:" +
-                            "\n\n${premises.asString()}\n\nReturn some ideas on what of this can be helpful for proving the theorem."),
+                            wrapPromptElement(premises.asString()) +
+                            "Return some ideas on what of this can be helpful for proving the theorem."),
                 )
             },
             applyResponse = { st, response ->
@@ -121,9 +127,10 @@ fun rocqStarExecutorStrategy(
                 // TODO: Here we call the messagesToSummarize twice, which indeed
                 // brings computational overhead, refactor that
                 val (toSummarize, _) = messagesToSummarize(state)
+                val jointToSummarize = toSummarize.joinToString("\n") { it.content }
                 val summarizerUserMessage =
                     "Please produce a concise bullet-point summary of the proof progress so far (4-5) bullet points:\n\n" +
-                            toSummarize.joinToString("\n") { it.content } +
+                            wrapPromptElement(jointToSummarize, "to summarize") +
                             "DO NOT CALL TOOLS."
 
                 listOf<Message>(
@@ -196,7 +203,7 @@ fun rocqStarExecutorStrategy(
         edge(summarizerNode forwardTo nodeCallExecutorModel)
 
         // I am not sure how is branch-priority implemented in koog,
-        // therefore, currently it is like this in case conditions are not checked in the order of declarations
+        // therefore, currently it is like this in case conditions are not checked in order of declarations
         // TODO: fix
         edge(nodeExecuteTool forwardTo nodeCallExecutorModel
                 onCondition { st ->
@@ -210,50 +217,27 @@ fun rocqStarExecutorStrategy(
     }
 }
 
-fun userWithMeta(userMessage: String): Message.User {
-    return Message.User(
-        userMessage,
-        metaInfo = RequestMetaInfo.create(Clock.System)
-    )
-}
-
-fun systemWithMeta(systemMessage: String): Message.System {
-    return Message.System(
-        systemMessage,
-        metaInfo = RequestMetaInfo.create(Clock.System)
-    )
-}
-
-private fun messagesToSummarize(state: PlanExecutionState): Pair<List<Message>, List<Message>> {
-    val rawMsgCount = state.prompt.messages.size
-    val messagesToSummarize = mutableListOf<Message>()
-
-    for (message in state.prompt.messages) {
-        if (messagesToSummarize.size < rawMsgCount - KEEP_LAST_K_MESSAGES) {
-            messagesToSummarize.add(message)
-        } else {
-            val lastAddedMessage = messagesToSummarize.last()
-            if (lastAddedMessage.role == Role.Tool) {
-                messagesToSummarize.add(message)
-            }
-            break
-        }
-    }
-
-    val remainingMessages = state.prompt.messages.drop(messagesToSummarize.size)
-    return messagesToSummarize to remainingMessages
-}
-
+/**
+ * Default node to retrieve the answer from the model and put the answer to the history.
+ * In comparison to the default koog nodeLLMRequest node, updates the prompt in a different way.
+ * If a tool-call occurred, packs it into `lastToolCall` field of the state
+ *
+ * @param withProfile The configuration of the used model: includes
+ * temperature, maximum used tokens, and the profile
+ * @param buildPrompt Defines, how to build the prompt for the call, given the current
+ * execution state. By default, takes the current execution history w/o modifications
+ * @param applyResponse Given the current execution state and the model response, defines how to construct
+ * the new state of the prompt. Default way to manage the response of the assistant: push it to the end of
+ * the message history. When canCallTools = true and applyResponse redefines
+ * the behavior, declining the tool-call, UB occurs; however, that doesn't make
+ * sense semantically
+ */
 fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
     name: String,
     withProfile: ResolvedModelConfig,
     logger: Logger,
     canCallTools: Boolean = true,
     buildPrompt: (PlanExecutionState) -> List<Message> = { it.prompt.messages },
-    // Default way to manage the response of the assistant: push it to the end
-    // of the message history. When canCallTools = true and applyResponse redefines
-    // the behavior, declining the tool-call, UB occurs; however, that doesn't make
-    // sense semantically
     applyResponse: (PlanExecutionState, Message) -> Prompt = { st, response ->
         prompt(st.prompt) { message(response) }
     }
@@ -288,6 +272,11 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
         }
     }
 
+/**
+ * Implements a default nodeExecuteTool node behavior. Differs from the koog analog in a way
+ * it manages the prompt and the assistant's answer. Additionally, it listens to checkProof
+ * tool and handles them differently, as our execution state updates on checkProof calls.
+ */
 fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
     name: String,
     logger: Logger,
@@ -330,10 +319,10 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
 
         logger.info(
             """
-                Name of the tool: ${st.lastToolCall.tool}
-                Current number of failed checks: $failedChecks
-                Proof is $finishedProof, explanation message: $explanationMessage
-            """.trimIndent()
+            |Name of the tool: ${st.lastToolCall.tool}
+            |Current number of failed checks: $failedChecks
+            |Proof is $finishedProof, explanation message: $explanationMessage
+            """.trimMargin()
         )
 
         st.copy(
@@ -349,6 +338,40 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
             finishedProof = finishedProof,
         )
     }
+
+fun userWithMeta(userMessage: String): Message.User {
+    return Message.User(
+        userMessage,
+        metaInfo = RequestMetaInfo.create(Clock.System)
+    )
+}
+
+fun systemWithMeta(systemMessage: String): Message.System {
+    return Message.System(
+        systemMessage,
+        metaInfo = RequestMetaInfo.create(Clock.System)
+    )
+}
+
+private fun messagesToSummarize(state: PlanExecutionState): Pair<List<Message>, List<Message>> {
+    val rawMsgCount = state.prompt.messages.size
+    val messagesToSummarize = mutableListOf<Message>()
+
+    for (message in state.prompt.messages) {
+        if (messagesToSummarize.size < rawMsgCount - KEEP_LAST_K_MESSAGES) {
+            messagesToSummarize.add(message)
+        } else {
+            val lastAddedMessage = messagesToSummarize.last()
+            if (lastAddedMessage.role == Role.Tool) {
+                messagesToSummarize.add(message)
+            }
+            break
+        }
+    }
+
+    val remainingMessages = state.prompt.messages.drop(messagesToSummarize.size)
+    return messagesToSummarize to remainingMessages
+}
 
 const val CHECK_PROOF_TOOL_NAME = "checkProof"
 const val MAX_MESSAGES_BEFORE_SUMMARIZE = 60
