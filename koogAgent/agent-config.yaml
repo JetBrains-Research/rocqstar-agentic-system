@@ -3,6 +3,7 @@ agentVersion: "0.0.1"
 
 coq_project_server_url: "http://localhost:8000/rest/document"
 mcp_server_url: "http://localhost:3001/mcp"
+langfuse_host: "https://langfuse.labs.jb.gg"
 
 path_to_theorems: "resources/test_group_a_imm.json"
 

@@ -4,6 +4,7 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.tools
+import ai.koog.agents.features.opentelemetry.feature.OpenTelemetry
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
@@ -24,6 +25,8 @@ import org.example.utils.generateWithPrompt
 import org.example.utils.generateWithPromptString
 import java.net.http.HttpClient
 import java.util.logging.Logger
+import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExporter
+import org.example.agent.LangfuseConfig.Companion.fromAgentConfig
 import kotlin.use
 
 class RocqStarAgent(
@@ -157,7 +160,20 @@ class RocqStarAgent(
                 model = agentConfig.generators.executor.profile,
                 // We manage iterations on our own, therefore here maxAgentIterations ~= INF
                 maxAgentIterations = 1000,
-            )
+            ),
+            installFeatures = {
+                val langFuseConfig = fromAgentConfig(agentConfig, logger)
+                if (langFuseConfig != null) {
+                    install(OpenTelemetry) {
+                        setVerbose(true)
+                        addLangfuseExporter(
+                            langfuseUrl = langFuseConfig.host,
+                            langfusePublicKey = langFuseConfig.publicKey,
+                            langfuseSecretKey = langFuseConfig.secretKey
+                        )
+                    }
+                }
+            }
         )
 
         logger.info("Starting execution of an agent")

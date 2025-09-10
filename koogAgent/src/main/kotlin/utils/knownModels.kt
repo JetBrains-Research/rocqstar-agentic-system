@@ -21,8 +21,6 @@ internal val LLM_MODELS: Map<String, LLModel> = mapOf(
     createModelEntry(AnthropicModels.Sonnet_3_7, "anthropic-claude-3.7-sonnet"),
     createModelEntry(AnthropicModels.Sonnet_4, "anthropic-claude-4-sonnet"),
 
-    createModelEntry(GoogleModels.Gemini1_5Flash, "google-chat-gemini-flash-1.5"),
-    createModelEntry(GoogleModels.Gemini1_5Pro, "google-chat-gemini-pro-1.5"),
     createModelEntry(GoogleModels.Gemini2_0Flash, "google-chat-gemini-flash-2.0"),
     createModelEntry(GoogleModels.Gemini2_0FlashLite, "google-chat-gemini-flash-lite-2.0"),
     createModelEntry(GoogleModels.Gemini2_5Flash, "google-chat-gemini-flash-2.5"),

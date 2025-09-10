@@ -9,6 +9,7 @@ import ai.grazie.model.auth.v5.AuthData
 import ai.grazie.model.cloud.AuthType
 import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
 import ai.jetbrains.code.prompt.executor.clients.grazie.koog.GrazieLLMClient
+import ai.koog.prompt.params.LLMParams
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.*
 
@@ -29,7 +30,8 @@ fun simpleGrazieExecutor(
                 )
             ),
             AuthType.User
-        )
+        ),
+        default = LLMParams()
     )
     return SingleLLMPromptExecutor(client)
 }

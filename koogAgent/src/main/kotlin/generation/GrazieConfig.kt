@@ -11,7 +11,9 @@ data class GrazieConfig(
 ) {
     companion object {
         fun fromAgentConfig(agentConfig: ResolvedAgentConfig): GrazieConfig = GrazieConfig(
-            apiToken = agentConfig.apiTokens.grazieApiToken,
+            apiToken = requireNotNull(agentConfig.apiTokens.grazieApiToken) {
+                "Grazie API token is missing in .env"
+            },
             agentName = agentConfig.agentId,
             agentVersion = agentConfig.agentVersion,
             authType = agentConfig.grazie.clientAuthType

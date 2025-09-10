@@ -28,7 +28,9 @@ fun main() {
             simpleGrazieExecutor(grazieConfig, GRAZIE_STAGING_URI)
         } else {
             // TODO: Support non-grazie backend with different LLM providers
-            simpleOpenAIExecutor(agentConfig.apiTokens.openAiApiToken)
+            simpleOpenAIExecutor(requireNotNull(agentConfig.apiTokens.grazieApiToken) {
+                "OpenAI API token is missing in the .env"
+            })
         }
         val logger: Logger = Logger.getLogger("main")
 

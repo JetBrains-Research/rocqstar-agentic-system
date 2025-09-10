@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.1.21"
-koog = "0.3.0"
+koog = "0.4.1"
 grazie = "0.8.11"
 grazie-gateway = "0.8.46"
 code-engine = "1.0.0-beta.92"

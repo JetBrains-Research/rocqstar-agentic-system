@@ -22,6 +22,8 @@ data class AgentConfig private constructor(
     val coqProjectServerBaseUrl: String,
     @param:JsonProperty("mcp_server_url")
     val mcpServerBaseUrl: String,
+    @param:JsonProperty("langfuse_host")
+    val langfuseHostUrl: String,
 
     @param:JsonProperty("path_to_theorems")
     val pathToTheorems: String,
@@ -71,6 +73,7 @@ data class AgentConfig private constructor(
         agentVersion = agentVersion,
         coqProjectServerBaseUrl = coqProjectServerBaseUrl,
         mcpServerBaseUrl = mcpServerBaseUrl,
+        langfuseHostUrl = langfuseHostUrl,
         pathToTheorems = pathToTheorems,
         backend = backend,
         numPlansToGenerate = numPlansToGenerate,
@@ -92,6 +95,7 @@ data class ResolvedAgentConfig(
     val agentVersion: String,
     val coqProjectServerBaseUrl: String,
     val mcpServerBaseUrl: String,
+    val langfuseHostUrl: String,
     val pathToTheorems: String,
     val backend: Backend,
     val numPlansToGenerate: Int,
@@ -295,8 +299,10 @@ data class ResolvedGeneratorsConfig(
 )
 
 data class APITokens(
-    val grazieApiToken: String = getEnv("GRAZIE_TOKEN"),
-    val openAiApiToken: String = getEnv("OPENAI_API_KEY")
+    val grazieApiToken: String? = getEnv("GRAZIE_TOKEN"),
+    val openAiApiToken: String? = getEnv("OPENAI_API_KEY"),
+    val langfusePublicKey: String? = getEnv("LANGFUSE_PUBLIC_KEY"),
+    val langfusePrivateKey: String? = getEnv("LANGFUSE_SECRET_KEY")
 )
 
 internal fun loadAgentConfig(filePath: Path): ResolvedAgentConfig {
