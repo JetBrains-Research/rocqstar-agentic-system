@@ -25,6 +25,7 @@ defaults:
 
 grazie:
   client_auth_type: "user" # "application" | "user"
+  grazie_environment: "staging" # "staging" | "production"
 
 planning:
   plan_ranker:

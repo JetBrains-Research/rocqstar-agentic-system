@@ -10,7 +10,7 @@ import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
 import io.github.cdimascio.dotenv.dotenv
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
+
 
 /**
  * This class only contains the wrappers over actual tool-calls;
@@ -113,13 +113,6 @@ class RocqMcpToolSet(
             "maxNumberOfPremises" to BodyParam.Num(maxNumberOfPremises)
         )
     )
-
-//    @Tool
-//    @LLMDescription(
-//        "Returns output of Coq Print All command, issued in the context of the current session. This command prints all defined objects in the current file. " +
-//        "In particular, that would mean printing all statements of theorems available above the one we are trying to prove at the moment of request."
-//    )
-//    fun getObjects() = proofSessionManager.callTool("get_objects", true)
 
     @Tool
     @LLMDescription("Explains a term in the current session's file. Uses About Coq Command.")

@@ -1,14 +1,12 @@
 package org.example
 
-import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
 import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
+import ai.koog.prompt.executor.model.PromptExecutor
 import kotlinx.coroutines.runBlocking
 import org.example.agent.RocqStarAgent
 import org.example.generation.GrazieConfig
-import org.example.generation.simpleGrazieExecutor
 import org.example.tools.McpSessionManager
 import org.example.utils.Backend
-import org.example.utils.GRAZIE_STAGING_URI
 import org.example.utils.ResolvedAgentConfig
 import org.example.utils.loadAgentConfig
 import java.net.http.HttpClient
@@ -18,6 +16,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import org.example.generation.graziePromptExecutorFromConfig
 import kotlin.io.path.readText
 
 fun main() {
@@ -25,7 +24,7 @@ fun main() {
         val agentConfig = loadAgentConfig(Path.of("agent-config.yaml"))
         val executor = if (agentConfig.backend == Backend.Grazie) {
             val grazieConfig = GrazieConfig.fromAgentConfig(agentConfig)
-            simpleGrazieExecutor(grazieConfig, GRAZIE_STAGING_URI)
+            graziePromptExecutorFromConfig(grazieConfig)
         } else {
             // TODO: Support non-grazie backend with different LLM providers
             simpleOpenAIExecutor(requireNotNull(agentConfig.apiTokens.grazieApiToken) {
@@ -64,7 +63,7 @@ fun main() {
 
 suspend fun runOnTheorem(
     agentConfig: ResolvedAgentConfig,
-    executor: SingleLLMPromptExecutor,
+    executor: PromptExecutor,
     mcpSessionManager: McpSessionManager,
     httpClient: HttpClient,
     filePath: String,

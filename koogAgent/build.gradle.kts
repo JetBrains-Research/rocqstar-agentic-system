@@ -20,7 +20,6 @@ dependencies {
     implementation(libs.koog)
     implementation(libs.grazie.koog.executor)
     implementation(libs.grazie.ktor)
-    implementation(libs.grazie.gateway)
     implementation(libs.ktor.okhttp)
 
     implementation(libs.jackson.kotlin)

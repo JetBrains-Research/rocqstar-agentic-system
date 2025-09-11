@@ -10,7 +10,7 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.ext.agent.ProvideStringSubgraphResult
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
+import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.params.LLMParams
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -33,7 +33,7 @@ suspend fun generateMadPlan(
     theoremStatement: String,
     toolsetSummary: String,
     agentConfig: ResolvedAgentConfig,
-    executor: SingleLLMPromptExecutor
+    executor: PromptExecutor
 ): String {
     val toolRegistry = ToolRegistry {
         tool(ProvideStringSubgraphResult)

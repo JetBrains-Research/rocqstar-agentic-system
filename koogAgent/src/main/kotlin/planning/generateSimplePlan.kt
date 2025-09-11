@@ -1,7 +1,7 @@
 package org.example.planning
 
 import ai.koog.agents.core.agent.AIAgent
-import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
+import ai.koog.prompt.executor.model.PromptExecutor
 import org.example.utils.ResolvedAgentConfig
 
 private const val systemPrompt = """
@@ -14,7 +14,7 @@ suspend fun generateSimplePlan(
     theoremStatement: String,
     toolsetSummary: String,
     agentConfig: ResolvedAgentConfig,
-    executor: SingleLLMPromptExecutor
+    executor: PromptExecutor
 ): String {
     val agent = AIAgent(
         executor = executor,

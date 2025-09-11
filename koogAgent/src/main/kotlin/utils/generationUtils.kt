@@ -5,7 +5,6 @@ import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.singleRunStrategy
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.prompt.dsl.Prompt
-import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -14,7 +13,7 @@ suspend fun generateWithPromptString(
     systemPrompt: String,
     userPrompt: String,
     params: ResolvedModelConfig,
-    executor: SingleLLMPromptExecutor,
+    executor: PromptExecutor,
 ): String = AIAgent(
     executor = executor,
     systemPrompt = systemPrompt,

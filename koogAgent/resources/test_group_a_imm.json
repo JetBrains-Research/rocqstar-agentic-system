@@ -1,5 +1,19 @@
 {
+  "src/travorder/AuxEE.v": [
+    "co_E_ENI"
+  ],
   "src/basic/Events.v": [
-    "loceq_same_tid"
+    "same_label_u2v_val",
+    "same_lab_u2v_mod",
+    "is_f_val",
+    "same_lab_u2v_is_ra",
+    "same_lab_u2v_is_xacq"
+  ],
+  "src/imm/imm_hb.v": [
+    "hb_trans"
+  ],
+  "src/basic/Execution.v": [
+    "detour_to_codom_rfe",
+    "rfi_union_rfe"
   ]
 }

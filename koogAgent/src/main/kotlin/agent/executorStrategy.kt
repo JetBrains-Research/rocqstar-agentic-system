@@ -84,7 +84,8 @@ fun rocqStarExecutorStrategy(
                                 "Now continue with following this plan and calling tools"
                     )
                 }
-            }
+            },
+            resetFailedProofChecks = true
         )
 
         val getSimilarProofs by executorModelCall(
@@ -260,6 +261,8 @@ fun rocqStarExecutorStrategy(
  * the message history. When canCallTools = true and applyResponse redefines
  * the behavior, declining the tool-call, UB occurs; however, that doesn't make
  * sense semantically
+ * @param resetFailedProofChecks Whether to reset the number of failed proof checks to 0.
+ * Is needed after the re-planning stage is complete.
  */
 fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
     name: String,
@@ -269,7 +272,8 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
     buildPrompt: (PlanExecutionState) -> List<Message> = { it.prompt.messages },
     applyResponse: (PlanExecutionState, Message) -> Prompt = { st, response ->
         prompt(st.prompt) { message(response) }
-    }
+    },
+    resetFailedProofChecks: Boolean = false,
 ): AIAgentNodeDelegate<PlanExecutionState, PlanExecutionState> =
     node(name) { st ->
         llm.writeSession {
@@ -286,6 +290,11 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
             } else {
                 requestLLMWithoutTools()
             }
+
+            logger.info(
+                "Received response from llm: ${response.content}"
+            )
+
             // If the response from the assistant is a tool-call,
             // then we will successfully cast it and manage in the next node
             val toolAction = response as? Message.Tool.Call
@@ -298,6 +307,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
                         content = mapEmptyJsonContent(it.content),
                     )
                 },
+                failedProofChecksInARow = if (resetFailedProofChecks) 0 else st.failedProofChecksInARow
             )
         }
     }

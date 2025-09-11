@@ -7,7 +7,6 @@ import ai.koog.agents.core.tools.reflect.tools
 import ai.koog.agents.features.opentelemetry.feature.OpenTelemetry
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.llms.SingleLLMPromptExecutor
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.params.LLMParams
@@ -26,12 +25,13 @@ import org.example.utils.generateWithPromptString
 import java.net.http.HttpClient
 import java.util.logging.Logger
 import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExporter
+import ai.koog.prompt.executor.model.PromptExecutor
 import org.example.agent.LangfuseConfig.Companion.fromAgentConfig
 import kotlin.use
 
 class RocqStarAgent(
     private val agentConfig: ResolvedAgentConfig,
-    private val executor: SingleLLMPromptExecutor,
+    private val executor: PromptExecutor,
     private val mcpSessionManager: McpSessionManager,
     private val httpClient: HttpClient
 ) {
@@ -60,6 +60,7 @@ class RocqStarAgent(
             val sortedPlans = generateSortedPlanCandidates(theoremStatement, toolsSummary)
 
             return iteratePlans(
+                theoremName,
                 theoremStatement,
                 targetPath,
                 sortedPlans,
@@ -71,6 +72,7 @@ class RocqStarAgent(
     }
 
     suspend fun iteratePlans(
+        theoremName: String,
         theoremStatement: String,
         targetPath: String,
         plans: List<String>,
@@ -86,6 +88,8 @@ class RocqStarAgent(
             }
 
             val execResult = executePlan(
+                index,
+                theoremName,
                 plan,
                 executionHistorySummary,
                 theoremStatement,
@@ -104,6 +108,8 @@ class RocqStarAgent(
     }
 
     suspend fun executePlan(
+        planIndex: Int,
+        theoremName: String,
         plan: String,
         summary: String?,
         theoremStatement: String,
@@ -150,6 +156,7 @@ class RocqStarAgent(
         )
 
         val agent = AIAgent(
+            id = "$theoremName plan#$planIndex",
             promptExecutor = executor,
             strategy = rocqStarExecutorStrategy(agentConfig, logger),
             toolRegistry = ToolRegistry {

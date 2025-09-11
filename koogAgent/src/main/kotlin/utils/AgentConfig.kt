@@ -1,5 +1,6 @@
 package org.example.utils
 
+import ai.jetbrains.code.prompt.executor.clients.grazie.koog.model.GrazieEnvironment
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.DeserializationFeature
@@ -141,7 +142,9 @@ enum class Backend(val value: String) {
 
 data class GrazieConfig(
     @param:JsonProperty("client_auth_type", required = true)
-    private val rawAuthType: String
+    private val rawAuthType: String,
+    @param:JsonProperty("grazie_environment", required = true)
+    private val rawGrazieEnvironment: String
 ) {
     @get:JsonIgnore
     val clientAuthType: AuthType
@@ -151,8 +154,16 @@ data class GrazieConfig(
             else -> throw IllegalArgumentException("Unknown auth_type: $rawAuthType")
         }
 
+    @get:JsonIgnore
+    val grazieEnvironment: GrazieEnvironment
+        get() = when (rawGrazieEnvironment.lowercase()) {
+            "staging" -> GrazieEnvironment.Staging
+            "production" -> GrazieEnvironment.Production
+            else -> throw IllegalArgumentException("Unknown grazie_environment: $rawGrazieEnvironment")
+        }
+
     override fun toString(): String =
-        "GrazieConfig(clientAuthType=$clientAuthType)"
+        "GrazieConfig(clientAuthType=$clientAuthType, grazieEnvironment=$grazieEnvironment)"
 }
 
 internal data class ModelConfig(
