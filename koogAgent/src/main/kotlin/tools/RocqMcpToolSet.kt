@@ -90,7 +90,7 @@ class RocqMcpToolSet(
     fun checkProof(
         @LLMDescription("The proof to validate. It should start with 'Proof.'")
         proof: String,
-    ) = proofSessionManager.checkProof(proof)
+    ) = proofSessionManager.checkProof(BodyParam.Str(proof))
 
     @Tool
     @LLMDescription("Retrieves similar proofs for a goal in a file")
@@ -133,11 +133,7 @@ class RocqMcpToolSet(
     fun searchPattern(
         @LLMDescription("The pattern to search for")
         pattern: String,
-    ) = proofSessionManager.callTool(
-        "search_pattern",
-        true,
-        mapOf("pattern" to BodyParam.Str(pattern))
-    )
+    ) = proofSessionManager.searchPattern(pattern)
 
     @Tool
     @LLMDescription("Prints a term in the current session's file. Uses Print Coq Command.")
@@ -189,7 +185,7 @@ fun main() {
                 }
             )
 
-            val result = agent.run("Show me the working directory using getProjectRoot")
+            val result = agent.run("Firstly, call the searchPattern tool with no_co_to_init argument")
             println("AGENT RESULT: $result")
         }
     }

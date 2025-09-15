@@ -20,7 +20,7 @@ fun getToolSummary(toolset: ToolSet): String {
 }
 
 /**
- * This method does context retrieval in the file, by exploring other defined theorems
+ * This method does context retrieval in the file by exploring other defined theorems
  * and ranking them according to the chosen ranker. By default, it uses RocqStarRanker.
  * This behavior is defined in /src/agentServer/controllers/coqProjectController.ts file
  * of the MCP/Rocq-server project.
@@ -31,24 +31,28 @@ fun retrieveContextPremises(
     maximumPremisesFromRanker: Int,
     logger: Logger,
 ): SimilarTheorems {
-    val currentGoals = sessionManager.currentGoals
-    // The state in Rocq is described as a list of goals, we iterate over goals,
-    // for each of them we fetch theorems with similar goals, and return the concatenated list
+    var currentGoals = sessionManager.currentGoals
+    // The state in Rocq is described as a list of goals, we take the first goal
+    // and fetch theorems with similar goals to the current one
 
     require(currentGoals != null) { "Coq Project server returned goals = null" }
     if (currentGoals.isEmpty()) {
-        logger.warning("Observed state with no goals")
+        // Actually, that overcomes the CoqProjectServer bug when it sometimes returns
+        // empty goals in the checkProof response. Should be properly fixed there.
+        sessionManager.setGoalsToInitialState()
+        currentGoals = sessionManager.currentGoals
+
+        require (currentGoals != null && currentGoals.isNotEmpty()) {
+            "Coq Project server returned non-valid goals for unfinished proof"
+        }
     }
 
-    val premiseNames = mutableListOf<String>()
-    for (goal in currentGoals) {
-        val premises = sessionManager.getPremises(
-            goal,
-            filePath,
-            maximumPremisesFromRanker
-        )
-        premiseNames.addAll(premises.premises)
-    }
+    val firstGoal = currentGoals.first()
+    val premiseNames = sessionManager.getPremises(
+        firstGoal,
+        filePath,
+        maximumPremisesFromRanker
+    ).premises
 
     logger.info("Retrieved ${premiseNames.size} premises for $filePath")
 
@@ -60,8 +64,8 @@ fun retrieveContextPremises(
 
 /**
  * @return Human/LLM-readable explanation of what was returned from the server
- * as an answer to the check-proof request. There are non-trivial answers and invariants
- * therefore this helper produces better wrapper-explanation
+ * as an answer to the check-proof request. There are non-trivial answers and invariants;
+ * therefore, this helper produces better wrapper-explanation
  */
 fun explainCheckProofResponse(response: ProofCheckResponse): ProofCheckResponseExplanation {
     var explanation = response.toString()

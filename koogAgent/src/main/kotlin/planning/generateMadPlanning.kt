@@ -63,9 +63,9 @@ suspend fun generateMadPlan(
 
 /**
  * This custom node handles proper communication with the LLM,
- * it makes sure that LLM parameters, such as profile and temperature are passed to the execution.
+ * it makes sure that LLM parameters, such as profile and temperature, are passed to the execution.
  * Additionally, it manages prompt-rewriting, because the default koog-way of building prompt between
- * LLM-calls does not work in our scenario
+ * LLM calls does not work in our scenario
  */
 fun madDebateStrategy(
     agentConfig: ResolvedAgentConfig,

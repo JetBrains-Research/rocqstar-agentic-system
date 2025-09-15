@@ -36,7 +36,13 @@ data class ProofCheckResponse(
     val error: ProofError? = null,
     val validPrefix: String? = null,
     val attemptedProof: String? = null
-)
+) {
+    companion object {
+        fun fromErrorMsg(msg: String): ProofCheckResponse {
+            return ProofCheckResponse(success = false, message = msg)
+        }
+    }
+}
 
 /**
  * To keep goals as JSON strings, because they are not used otherwise
@@ -78,3 +84,37 @@ data class ProofErrorPosition(
 data class GetPremisesResponse(
     val premises: List<String>
 )
+
+@Serializable
+data class SearchPatternResponse(
+    val message: String,
+    val success: Boolean? = null,
+    val result: List<String>? = null,
+    val error: String? = null
+) {
+    fun trimLongResponse(): SearchPatternResponse {
+        if (this.result == null) {
+            return this
+        }
+
+        val resultJoint = this.result.joinToString("\n")
+        val isResTooLong = resultJoint.length > MAX_SEARCH_QUERY_RES
+
+        val newMessage = if (isResTooLong) {
+            "${this.message} ** However, this query was very ambiguous, " +
+                    "its output was trimmed to fit into the context. Try using a more " +
+                    "specific search pattern."
+        } else {
+            this.message
+        }
+
+        val newResult = resultJoint.take(MAX_SEARCH_QUERY_RES)
+
+        return this.copy(
+            message = newMessage,
+            result = listOf(newResult)
+        )
+    }
+}
+
+const val MAX_SEARCH_QUERY_RES = 500

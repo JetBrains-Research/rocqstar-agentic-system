@@ -8,11 +8,11 @@ langfuse_host: "https://langfuse.labs.jb.gg"
 path_to_theorems: "resources/test_group_a_imm.json"
 
 backend: "grazie" # "grazie" | "openai"
-planning_type: "simple" # "mad" (multi-agentic-debates) | "simple"
+planning_type: "mad" # "mad" (multi-agentic-debates) | "simple"
 
-how_many_plans_to_generate: 1 # default: 3
-how_many_best_plans_to_execute: 3 # default: 3
-maximum_premises_from_ranker: 3 # default: 20
+how_many_plans_to_generate: 3 # default: 3
+how_many_best_plans_to_execute: 2 # default: 2
+maximum_premises_from_ranker: 20 # default: 20
 allowed_failed_proof_checks_in_row: 5 # default: 5
 total_allowed_tool_calls: 20 # default: 20
 

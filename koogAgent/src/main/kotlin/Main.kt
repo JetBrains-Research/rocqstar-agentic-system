@@ -49,9 +49,15 @@ fun main() {
                 val theoremName = theorem.jsonPrimitive.content
                 totalCount++
 
-                val success = runOnTheorem(
-                    agentConfig, executor, mcpSessionManager, httpClient, filePath, theoremName, logger
-                )
+                var success = false
+
+                try {
+                    success = runOnTheorem(
+                        agentConfig, executor, mcpSessionManager, httpClient, filePath, theoremName, logger
+                    )
+                } catch (e: Exception) {
+                    logger.warning("Error while executing theorem $theoremName: $e")
+                }
 
                 if (success) successCount++
             }

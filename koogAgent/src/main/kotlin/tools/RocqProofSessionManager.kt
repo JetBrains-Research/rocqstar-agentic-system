@@ -9,6 +9,7 @@ import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.logging.Logger
+import kotlin.IllegalArgumentException
 
 /**
  * This class manages the abstraction of Coq-proof session.
@@ -44,12 +45,10 @@ class RocqProofSessionManager(
         proofSessionId = startSessionResponse.sessionId
         proofHash = startSessionResponse.proofVersionHash
 
-        // This is a workaround to retrieve initial state of the theorem.
-        val dummyProof = "Proof.\nQed."
-        val checkProofResponse = checkProof(dummyProof)
-        // Actually it is done in the call, but kotlin type-checker cannot
-        // infer it
-        currentGoals = checkProofResponse.goals
+        val initialGoals = setGoalsToInitialState()
+        // Actually, it is done in the call, but a kotlin type-checker cannot
+        // infer it as it doesn't know mcp-server invariants
+        currentGoals = initialGoals.goals
     }
 
     /**
@@ -57,6 +56,13 @@ class RocqProofSessionManager(
      * of parameters and a tool name
      */
     fun callTool(toolName: String, insideProofSession: Boolean, args: ServerCallParameters = emptyMap()): String {
+        // If llm has provided illegal arguments to the tool-call.
+        // Basically checks for empty strings currently
+        val validationRes = args.validateParams()
+        if (validationRes.isFailure) {
+            return validationRes.toString()
+        }
+
         val finalArgs = args.withProofSession(insideProofSession, proofSessionId)
         val argsJson = finalArgs.toJson()
 
@@ -82,12 +88,7 @@ class RocqProofSessionManager(
             .build()
 
         val resp = client.send(req, HttpResponse.BodyHandlers.ofString())
-        val responseBody = resp.body()
-        return if (body.length >= MAX_MCP_RESPONSE_SYMBOLS) {
-            responseBody.take(MAX_MCP_RESPONSE_SYMBOLS)
-        } else {
-            responseBody
-        }
+        return resp.body()
     }
 
     /**
@@ -107,8 +108,8 @@ class RocqProofSessionManager(
      * The following six requests are sent
      * to the Coq Proof Server, which is a lower-level abstraction under the MCP.
      * [coqProjectRequest] by-passes the MCP and sends the request directly to the
-     * Coq Proof server. That is done in that way due to multiple reasons. E.g. MCP does not
-     * have requests to start and end session; we want to wrap CheckProofs request and manage its
+     * Coq Proof server. That is done in that way due to multiple reasons. E.g., MCP does not
+     * have requests to start and end the session; we want to wrap the CheckProofs request and manage its
      * output to update session resources, etc.
      *
      * @return ID of the started session, and the initial proof hash
@@ -134,19 +135,24 @@ class RocqProofSessionManager(
         )
     )
 
-    fun checkProof(proof: String): ProofCheckResponse {
+    fun checkProof(proof: BodyParam.Str): ProofCheckResponse {
         logger.info("Checking proof $proof")
+
+        if (proof.isEmpty()) {
+            return ProofCheckResponse.fromErrorMsg("Please provide a non-empty proof")
+        }
+
         val response = coqProjectRequest<ProofCheckResponse>(
             "check-proof",
             mapOf(
-                "proof" to BodyParam.Str(proof),
+                "proof" to BodyParam.Str(proof.value),
                 "coqSessionId" to BodyParam.Str(proofSessionId),
                 "proofVersionHash" to BodyParam.Str(proofHash)
             )
         )
 
         // Check proof is the only request that returns the updated goals
-        // Along with initializeSession, it is the only request, that returns proofSessionHash
+        // Along with initializeSession; it is the only request that returns proofSessionHash
         // Sometimes, when an error during checking the proof occurs on the server side,
         // the returned proof hash could be null
         response.hash?.let { proofHash = it }
@@ -180,6 +186,20 @@ class RocqProofSessionManager(
         )
     )
 
+    fun searchPattern(pattern: String) = coqProjectRequest<SearchPatternResponse>(
+        "search-pattern",
+        mapOf(
+            "pattern" to BodyParam.Str(pattern),
+            "coqSessionId" to BodyParam.Str(proofSessionId),
+        )
+    ).trimLongResponse()
+
+    fun setGoalsToInitialState(): ProofCheckResponse {
+        // This is a workaround to retrieve the initial state of the theorem.
+        val dummyProof = "Proof.\nQed."
+        return checkProof(BodyParam.Str(dummyProof))
+    }
+
     /**
      * In comparison to the MCP server, requests to the Coq project server are
      * GET requests (for some reason). Therefore, requests are packed with query-parameters
@@ -201,7 +221,7 @@ class RocqProofSessionManager(
         val body = resp.body()
 
         return try {
-            // Deserialize to requested type
+            // Deserialize to the requested type
             Json.decodeFromString<ResponseType>(body)
         } catch (e: Exception) {
             throw IllegalArgumentException(
@@ -270,7 +290,11 @@ data class FinishSessionResponse(
 )
 
 sealed class BodyParam {
-    data class Str(val value: String) : BodyParam()
+    data class Str(val value: String) : BodyParam() {
+        fun isEmpty(): Boolean = value.isEmpty() ||
+                value.isBlank() ||
+                value == EMPTY_JSON
+    }
     data class Num(val value: Int) : BodyParam()
 
     fun asString(): String = when (this) {
@@ -280,4 +304,15 @@ sealed class BodyParam {
 }
 
 typealias ServerCallParameters = Map<String, BodyParam>
-const val MAX_MCP_RESPONSE_SYMBOLS = 1000
+
+fun ServerCallParameters.validateParams(): Result<Unit> {
+    forEach { (_, param) ->
+        if (param is BodyParam.Str && param.isEmpty()) {
+            return Result.failure(IllegalStateException("$param is invalid, it is an empty string."))
+        }
+    }
+
+    return Result.success(Unit)
+}
+
+const val EMPTY_JSON = "{}"

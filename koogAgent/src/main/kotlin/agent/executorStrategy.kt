@@ -5,7 +5,6 @@ import ai.koog.agents.core.dsl.builder.AIAgentNodeDelegate
 import ai.koog.agents.core.dsl.builder.AIAgentSubgraphBuilderBase
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.environment.ReceivedToolResult
 import ai.koog.agents.core.environment.executeTool
 import ai.koog.agents.core.environment.result
 import ai.koog.prompt.dsl.Prompt
@@ -102,7 +101,7 @@ fun rocqStarExecutorStrategy(
                 )
 
                 // This fully rewrites the prompt for the current LLM call into
-                // a unique one, as similar proof analyzer doesn't look at the proof history
+                // a unique one, as a similar proof analyzer doesn't look at the proof history
                 listOf<Message>(
                     systemWithMeta("You are a proficient Rocq programmer"),
                     // TODO: Here state.theoremStatement is always the starting state of the theorem,
@@ -249,15 +248,15 @@ fun rocqStarExecutorStrategy(
 
 /**
  * Default node to retrieve the answer from the model and put the answer to the history.
- * In comparison to the default koog nodeLLMRequest node, updates the prompt in a different way.
+ * In comparison to the default koog nodeLLMRequest node, updates the prompt differently.
  * If a tool-call occurred, packs it into `lastToolCall` field of the state
  *
  * @param withProfile The configuration of the used model: includes
  * temperature, maximum used tokens, and the profile
- * @param buildPrompt Defines, how to build the prompt for the call, given the current
+ * @param buildPrompt Defines how to build the prompt for the call, given the current
  * execution state. By default, takes the current execution history w/o modifications
  * @param applyResponse Given the current execution state and the model response, defines how to construct
- * the new state of the prompt. Default way to manage the response of the assistant: push it to the end of
+ * the new state of the prompt. The default way to manage the response of the assistant: push it to the end of
  * the message history. When canCallTools = true and applyResponse redefines
  * the behavior, declining the tool-call, UB occurs; however, that doesn't make
  * sense semantically
@@ -325,34 +324,43 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
         require(st.lastToolCall != null) {
             "The node execute tool-call was called, but the last message was not tool-call."
         }
-        val toolCallResult: ReceivedToolResult = environment.executeTool(st.lastToolCall)
 
-        // Additional checks in case the tool-call
+        val toolCallResult = environment.executeTool(st.lastToolCall)
+
+        // Additional checks in case of proofCheck tool-call
         val (failedChecks, finishedProof, explanationMessage) =
             if (st.lastToolCall.tool == CHECK_PROOF_TOOL_NAME) {
                 logger.info(
                     "checkProof tool-call resulted in content: -${toolCallResult.content}-, " +
                             "result: *${toolCallResult.result}*"
                 )
-                val checkProofResult = Json.decodeFromString(
-                    ProofCheckResponse.serializer(),
-                    toolCallResult.content
+
+                runCatching {
+                    Json.decodeFromString(ProofCheckResponse.serializer(), toolCallResult.content)
+                }.fold(
+                    onSuccess = { checkProofResult ->
+                        // We parse the result of the checkProof tool by ourselves to
+                        // overtake the responsibility for understanding the MCP-servers' response
+                        // from the assistant
+                        val explanation = explainCheckProofResponse(checkProofResult)
+
+                        // We allow only a given number of failed proof-checks in a row
+                        // (to adjust the plan in case of continuous failures) and update the counter here
+                        val newFailedChecks =
+                            if (checkProofResult.success) 0 else st.failedProofChecksInARow + 1
+                        // In case a complete and a valid proof was sent for checking, automatically put it
+                        // into the result
+                        val proof = if (explanation.isProofComplete) checkProofResult.proof else null
+
+                        Triple(newFailedChecks, proof, explanation.explanationMessage)
+                    },
+                    onFailure = { e ->
+                        // That means that koog failed to execute the tool. Most of the time
+                        // that happens when the LLM passes incorrect arguments to the tool
+                        logger.warning("An error occurred while executing the tool-call ${e.message}")
+                        Triple(st.failedProofChecksInARow, null, null)
+                    }
                 )
-
-                // We parse the result of the checkProof tool by ourselves to
-                // overtake the responsibility for understanding the MCP-servers' response
-                // from the assistant
-                val explanation = explainCheckProofResponse(checkProofResult)
-
-                // We allow only a given number of failed proof-checks in a row
-                // (to adjust the plan in case of continuous failures) and update the counter here
-                val newFailedChecks =
-                    if (checkProofResult.success) 0 else st.failedProofChecksInARow + 1
-                // In case a complete and a valid proof was sent for checking, automatically put it
-                // into the result
-                val proof = if (explanation.isProofComplete) checkProofResult.proof else null
-
-                Triple(newFailedChecks, proof, explanation.explanationMessage)
             } else {
                 Triple(st.failedProofChecksInARow, null, null)
             }

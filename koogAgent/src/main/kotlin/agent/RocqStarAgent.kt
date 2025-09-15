@@ -242,7 +242,7 @@ class RocqStarAgent(
         )
     }
 
-    // Sort plans according the score, given by the plan-ranker LLM
+    // Sort plans according to the score, given by the plan-ranker LLM
     suspend fun sortPlans(
         theoremStatement: String,
         plans: List<String>,
