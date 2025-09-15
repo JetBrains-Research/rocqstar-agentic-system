@@ -280,7 +280,10 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
             rewritePrompt {
                 st.prompt.copy(
                     messages = buildPrompt(st),
-                    params = LLMParams(temperature = withProfile.temperature)
+                    params = LLMParams(
+                        temperature = withProfile.temperature,
+                        maxTokens = withProfile.maxTokens
+                    )
                 )
             }
 
@@ -357,7 +360,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
                     onFailure = { e ->
                         // That means that koog failed to execute the tool. Most of the time
                         // that happens when the LLM passes incorrect arguments to the tool
-                        logger.warning("An error occurred while executing the tool-call ${e.message}")
+                        logger.info("An error occurred while executing the tool-call ${e.message}")
                         Triple(st.failedProofChecksInARow, null, null)
                     }
                 )

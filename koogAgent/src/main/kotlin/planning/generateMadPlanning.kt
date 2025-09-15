@@ -129,7 +129,10 @@ fun madDebateStrategy(
 
                     prompt.copy(
                         messages = judgeBasePrompt.messages + debateMessages.messages,
-                        params = LLMParams(temperature = agentConfig.planning.madPlanning.judge.temperature)
+                        params = LLMParams(
+                            temperature = agentConfig.planning.madPlanning.judge.temperature,
+                            maxTokens = agentConfig.planning.madPlanning.judge.maxTokens
+                        )
                     )
                 }
 
@@ -202,7 +205,10 @@ fun AIAgentSubgraphBuilderBase<*, *>.makeDebaterRound(
 
                 prompt.copy(
                     messages = basePrompt.messages + debateMessages.messages,
-                    params = LLMParams(temperature = withProfile.temperature)
+                    params = LLMParams(
+                        temperature = withProfile.temperature,
+                        maxTokens = withProfile.maxTokens
+                    )
                 )
             }
 

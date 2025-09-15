@@ -26,6 +26,7 @@ import java.net.http.HttpClient
 import java.util.logging.Logger
 import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExporter
 import ai.koog.prompt.executor.model.PromptExecutor
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.agent.LangfuseConfig.Companion.fromAgentConfig
 import kotlin.use
 
@@ -129,6 +130,7 @@ class RocqStarAgent(
             "executor-prompt",
             params = LLMParams(
                 temperature = agentConfig.generators.executor.temperature,
+                maxTokens = agentConfig.generators.executor.maxTokens
             ),
         ) {
             system(executionSystemPrompt(theoremStatement, targetPath))

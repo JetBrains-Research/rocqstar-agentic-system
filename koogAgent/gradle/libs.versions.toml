@@ -8,6 +8,7 @@ dotenv = "6.5.1"
 slf4j = "2.0.17"
 serialization = "1.9.0"
 fasterxml-jackson = "2.19.0"
+kotlin-logging = "7.0.3"
 
 [libraries]
 koog = { module = "ai.koog:koog-agents", version.ref = "koog" }
@@ -16,6 +17,7 @@ grazie-ktor = { module = "ai.grazie.client:client-ktor", version.ref = "grazie" 
 ktor-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor"}
 dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 slf4j = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j"}
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
 kotlin-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization"}
 jackson-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "fasterxml-jackson" }
 jackson-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "fasterxml-jackson" }

@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.kotlin.serialization)
 
     implementation(libs.slf4j)
+    implementation(libs.kotlin.logging)
     implementation(libs.dotenv)
 }
 
