@@ -13,6 +13,7 @@ import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.Message.Role
 import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.params.LLMParams
+import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.serialization.json.Json
 import org.example.tools.ProofCheckResponse
 import org.example.tools.explainCheckProofResponse
@@ -20,12 +21,11 @@ import org.example.utils.ResolvedAgentConfig
 import org.example.utils.ResolvedModelConfig
 import kotlinx.datetime.Clock
 import org.example.tools.retrieveContextPremises
-import java.util.logging.Logger
 import kotlin.collections.plus
 
 fun rocqStarExecutorStrategy(
     agentConfig: ResolvedAgentConfig,
-    logger: Logger
+    logger: KLogger
 ): AIAgentStrategy<PlanExecutionState, PlanExecutionResult> {
     return strategy("executor-strategy") {
         val nodeCallExecutorModel by executorModelCall(
@@ -266,7 +266,7 @@ fun rocqStarExecutorStrategy(
 fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
     name: String,
     withProfile: ResolvedModelConfig,
-    logger: Logger,
+    logger: KLogger,
     canCallTools: Boolean = true,
     buildPrompt: (PlanExecutionState) -> List<Message> = { it.prompt.messages },
     applyResponse: (PlanExecutionState, Message) -> Prompt = { st, response ->
@@ -293,9 +293,9 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
                 requestLLMWithoutTools()
             }
 
-            logger.info(
+            logger.info {
                 "Received response from llm: ${response.content}"
-            )
+            }
 
             // If the response from the assistant is a tool-call,
             // then we will successfully cast it and manage in the next node
@@ -321,7 +321,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.executorModelCall(
  */
 fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
     name: String,
-    logger: Logger,
+    logger: KLogger,
 ): AIAgentNodeDelegate<PlanExecutionState, PlanExecutionState> =
     node(name) { st ->
         require(st.lastToolCall != null) {
@@ -333,10 +333,10 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
         // Additional checks in case of proofCheck tool-call
         val (failedChecks, finishedProof, explanationMessage) =
             if (st.lastToolCall.tool == CHECK_PROOF_TOOL_NAME) {
-                logger.info(
+                logger.info {
                     "checkProof tool-call resulted in content: -${toolCallResult.content}-, " +
                             "result: *${toolCallResult.result}*"
-                )
+                }
 
                 runCatching {
                     Json.decodeFromString(ProofCheckResponse.serializer(), toolCallResult.content)
@@ -360,7 +360,7 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
                     onFailure = { e ->
                         // That means that koog failed to execute the tool. Most of the time
                         // that happens when the LLM passes incorrect arguments to the tool
-                        logger.info("An error occurred while executing the tool-call ${e.message}")
+                        logger.info { "An error occurred while executing the tool-call ${e.message}" }
                         Triple(st.failedProofChecksInARow, null, null)
                     }
                 )
@@ -368,12 +368,12 @@ fun AIAgentSubgraphBuilderBase<*, *>.nodeExecuteTool(
                 Triple(st.failedProofChecksInARow, null, null)
             }
 
-        logger.info(
+        logger.info {
             """
             |Name of the tool: ${st.lastToolCall.tool}, params: ${st.lastToolCall.content}
             |Current number of failed checks: $failedChecks, number of tool-calls: ${st.numberToolCalls} 
             """.trimMargin()
-        )
+        }
 
         st.copy(
             prompt = prompt(st.prompt) {

@@ -1,7 +1,7 @@
 package org.example.agent
 
+import io.github.oshai.kotlinlogging.KLogger
 import org.example.utils.ResolvedAgentConfig
-import java.util.logging.Logger
 
 data class LangfuseConfig(
     val host: String,
@@ -11,13 +11,13 @@ data class LangfuseConfig(
     companion object {
         fun fromAgentConfig(
             agentConfig: ResolvedAgentConfig,
-            logger: Logger
+            logger: KLogger
         ): LangfuseConfig? {
             val publicKey = agentConfig.apiTokens.langfusePublicKey
             val secretKey = agentConfig.apiTokens.langfusePrivateKey
 
             return if (publicKey.isNullOrBlank() || secretKey.isNullOrBlank()) {
-                logger.warning("LangFuse keys are missing or incomplete. LangFuseConfig will not be initialized.")
+                logger.warn { "LangFuse keys are missing or incomplete. LangFuseConfig will not be initialized." }
                 null
             } else {
                 LangfuseConfig(

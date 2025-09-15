@@ -3,6 +3,7 @@ package org.example.tools
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
+import io.github.oshai.kotlinlogging.KLogger
 import org.example.agent.SimilarTheorems
 import org.example.agent.Theorem
 import org.example.agent.wrapPromptElement
@@ -29,7 +30,7 @@ fun retrieveContextPremises(
     filePath: String,
     sessionManager: RocqProofSessionManager,
     maximumPremisesFromRanker: Int,
-    logger: Logger,
+    logger: KLogger,
 ): SimilarTheorems {
     var currentGoals = sessionManager.currentGoals
     // The state in Rocq is described as a list of goals, we take the first goal
@@ -54,7 +55,7 @@ fun retrieveContextPremises(
         maximumPremisesFromRanker
     ).premises
 
-    logger.info("Retrieved ${premiseNames.size} premises for $filePath")
+    logger.info {"Retrieved ${premiseNames.size} premises for $filePath" }
 
     return premiseNames.map { theoremName ->
         val theorem = sessionManager.getTheorem(filePath, theoremName)

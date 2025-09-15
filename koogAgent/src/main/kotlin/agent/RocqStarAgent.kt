@@ -23,7 +23,6 @@ import org.example.utils.ResolvedAgentConfig
 import org.example.utils.generateWithPrompt
 import org.example.utils.generateWithPromptString
 import java.net.http.HttpClient
-import java.util.logging.Logger
 import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExporter
 import ai.koog.prompt.executor.model.PromptExecutor
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -185,7 +184,7 @@ class RocqStarAgent(
             }
         )
 
-        logger.info("Starting execution of an agent")
+        logger.info { "Starting execution of an agent" }
         return agent.run(initialExecutionState)
     }
 
@@ -244,7 +243,7 @@ class RocqStarAgent(
         )
     }
 
-    // Sort plans according to the score, given by the plan-ranker LLM
+    // Sort plans, according to the score, given by the plan-ranker LLM
     suspend fun sortPlans(
         theoremStatement: String,
         plans: List<String>,
@@ -297,7 +296,7 @@ class RocqStarAgent(
             "Theorem to prove: $theoremStatement in file $filePath"
         }
 
-        private val logger: Logger = Logger.getLogger(RocqStarAgent::class.java.name)
+        private val logger = KotlinLogging.logger {}
     }
 }
 

@@ -1,5 +1,7 @@
 package org.example.tools
 
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.Serializable
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -8,7 +10,6 @@ import kotlinx.serialization.json.Json
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.logging.Logger
 import kotlin.IllegalArgumentException
 
 /**
@@ -29,7 +30,7 @@ class RocqProofSessionManager(
     private val theoremName: String,
     private val targetTheoremPath: String,
     private val mcpSessionManager: McpSessionManager,
-    private val logger: Logger = Logger.getLogger(RocqProofSessionManager::class.java.name),
+    private val logger: KLogger = KotlinLogging.logger {},
     val projectServerBaseUrl: String = "http://localhost:8000/rest/document",
     val mcpServerBaseUrl: String = "http://localhost:3001/mcp",
     val client: HttpClient = HttpClient.newHttpClient(),
@@ -136,7 +137,7 @@ class RocqProofSessionManager(
     )
 
     fun checkProof(proof: BodyParam.Str): ProofCheckResponse {
-        logger.info("Checking proof $proof")
+        logger.info { "Checking proof $proof" }
 
         if (proof.isEmpty()) {
             return ProofCheckResponse.fromErrorMsg("Please provide a non-empty proof")

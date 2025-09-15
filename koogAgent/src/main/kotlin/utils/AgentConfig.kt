@@ -123,7 +123,9 @@ data class Defaults(
 
 enum class Backend(val value: String) {
     Grazie("grazie"),
-    OpenAI("openai");
+    OpenAI("openai"),
+    Anthropic("anthropic"),
+    OpenRouter("openrouter");
 
     @JsonValue
     override fun toString(): String = value
@@ -135,6 +137,8 @@ enum class Backend(val value: String) {
             when (value.lowercase()) {
                 "grazie" -> Grazie
                 "openai" -> OpenAI
+                "anthropic" -> Anthropic
+                "openrouter" -> OpenRouter
                 else -> throw IllegalArgumentException("Unknown backend: $value (must be 'grazie' or 'openai')")
             }
     }
@@ -312,6 +316,8 @@ data class ResolvedGeneratorsConfig(
 data class APITokens(
     val grazieApiToken: String? = getEnv("GRAZIE_TOKEN"),
     val openAiApiToken: String? = getEnv("OPENAI_API_KEY"),
+    val anthropicApiToken: String? = getEnv("ANTHROPIC_API_KEY"),
+    val openRouterApiToken: String? = getEnv("OPEN_ROUTER_API_KEY"),
     val langfusePublicKey: String? = getEnv("LANGFUSE_PUBLIC_KEY"),
     val langfusePrivateKey: String? = getEnv("LANGFUSE_SECRET_KEY")
 )
