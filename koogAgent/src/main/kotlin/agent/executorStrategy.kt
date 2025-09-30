@@ -424,5 +424,5 @@ private fun messagesToSummarize(state: PlanExecutionState): Pair<List<Message>, 
 }
 
 const val CHECK_PROOF_TOOL_NAME = "checkProof"
-const val MAX_MESSAGES_BEFORE_SUMMARIZE = 30
-const val KEEP_LAST_K_MESSAGES = 10
+const val MAX_MESSAGES_BEFORE_SUMMARIZE = 40
+const val KEEP_LAST_K_MESSAGES = 20

@@ -29,6 +29,8 @@ dependencies {
     implementation(libs.slf4j)
     implementation(libs.kotlin.logging)
     implementation(libs.dotenv)
+
+    implementation(libs.opentelemetry)
 }
 
 tasks.test {

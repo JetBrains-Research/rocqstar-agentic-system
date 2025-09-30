@@ -1,0 +1,48 @@
+{
+  "src/hardware/TSO.v": [
+    "ppo_in_sb"
+  ],
+  "src/travorder/AuxEE.v": [
+    "co_E_ENI"
+  ],
+  "src/basic/Events.v": [
+    "same_label_u2v_val",
+    "same_lab_u2v_mod",
+    "is_f_val",
+    "same_lab_u2v_is_ra",
+    "same_lab_u2v_is_xacq"
+  ],
+  "src/imm/imm_hb.v": [
+    "hb_trans"
+  ],
+  "src/basic/Execution.v": [
+    "detour_to_codom_rfe",
+    "rfi_union_rfe"
+  ],
+  "src/traversal/TraversalConfig.v": [
+    "ar_ct_I_in_I",
+    "sb_coverable",
+    "c_acq_covered",
+    "sc_coverable"
+  ],
+  "src/hardware/Power_ppo.v": [
+    "ic_cc_in_ic"
+  ],
+  "src/imm/imm_s_hb_hb.v": [
+    "s_hb_in_hb"
+  ],
+  "src/travorder/EventsTraversalOrder.v": [
+    "sb_coverable",
+    "urr_covered",
+    "fwbob_I_in_C"
+  ],
+  "src/travorder/SimClosure.v": [
+    "ICOHs"
+  ],
+  "src/imm/imm_bob.v": [
+    "bob_r_sb"
+  ],
+  "src/imm/SubExecution.v": [
+    "sub_E_in"
+  ]
+}

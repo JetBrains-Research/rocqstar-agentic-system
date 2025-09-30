@@ -27,6 +27,8 @@ import ai.koog.agents.features.opentelemetry.integration.langfuse.addLangfuseExp
 import ai.koog.prompt.executor.model.PromptExecutor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.example.agent.LangfuseConfig.Companion.fromAgentConfig
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter
+import java.util.concurrent.TimeUnit
 import kotlin.use
 
 class RocqStarAgent(
@@ -179,6 +181,15 @@ class RocqStarAgent(
                             langfusePublicKey = langFuseConfig.publicKey,
                             langfuseSecretKey = langFuseConfig.secretKey
                         )
+
+                        if (agentConfig.jaegerHostUrl.isNotBlank()) {
+                            addSpanExporter(
+                                OtlpGrpcSpanExporter.builder()
+                                    .setEndpoint(agentConfig.jaegerHostUrl)
+                                    .setTimeout(2, TimeUnit.SECONDS)
+                                    .build()
+                            )
+                        }
                     }
                 }
             }

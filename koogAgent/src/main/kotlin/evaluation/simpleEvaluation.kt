@@ -3,7 +3,6 @@ package org.example.evaluation
 import ai.koog.prompt.executor.model.PromptExecutor
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -24,9 +23,15 @@ suspend fun runSimpleEvaluation(agentConfig: ResolvedAgentConfig, dataset: Path)
     val logger = KotlinLogging.logger {}
 
     val httpClient = HttpClient.newHttpClient()
-    val mcpSessionManager = McpSessionManager(
-        agentConfig.mcpServerBaseUrl, httpClient
-    )
+    val mcpSessionManager =
+        try {
+            McpSessionManager(
+                agentConfig.mcpServerBaseUrl, httpClient
+            )
+        } catch (_: Exception) {
+            logger.warn { "Could not connect to MCP server. Evaluation will be skipped." }
+            return
+        }
 
     val theoremsJson = Json.parseToJsonElement(dataset.readText()) as JsonObject
 
