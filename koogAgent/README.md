@@ -12,15 +12,20 @@ On the top-level, the agent communicates to the Rocq-MCP server and Rocq Project
 Parameters of the run are configured in the `agent-config.yaml`, it has a list of properties to define the desired behavior. API keys and secrets are loaded from `.env` file. All API keys are optional and are resolved to non-optionals upon use. The main agent class is `RocqStarAgent` located in `agent/RocqStarAgent.kt`. Defore initializing an agent, one needs to build resources that are re-used in-between different theorems. Namely, these are: 
 
 1. The config, which is resolved from `agent-config.yaml`
-2. The executor, which is just the llm-provider of your choice. Currently, using different llm-providers is not supported properly (if your llm-provider supports models from various APIs, such as a gateway to OpenAI + Anthropic, that is not a problem). 
-3. `mcpSessionManager` - holds the current session of communication between the mcp-client and the mcp-server. Is created once and used during the whole execution. 
-4. `httpClient` - to re-use with the httpClient used in the MCP-client. 
+2. The executor, which is just the llm-provider of your choice. Currently, using different llm-providers is not supported properly (if your llm-provider supports models from various APIs, such as a gateway to OpenAI + Anthropic, that is not a problem).  
+3. `httpClient` - to re-use with the httpClient used in the MCP-client. 
 
 Currently, `Main.kt` contains a simple running script that reads theorems-list defined in a JSON from the given path (defaults to `resources/test_group_a_imm.json`) and then iterates over them, trying to prove every single one. 
 
 --- 
 
-The underlying implementation of the `RocqStarAgent` uses so-called `RocqProofSessionManager`, not to be confused with `McpSessionManager`. Due to the implementation specifics of the mcp-server, all of the functionality is implemented in the underlying abstraction behind it - `RocqProjectServer`. Some requests go directly to the `RocqProjectServer`, bypassing the MCP layer, for example, requests to trigger initialization/destruction of the proof-writing session. These sessions exist to speed-up type-checking, and are abstractions not seen by the model, and not appear in the tool-calls. 
+The underlying implementation of the `RocqStarAgent` uses so-called `RocqProofSessionManager`, not to be confused with `McpSessionManager`. Due to the implementation specifics of the mcp-server, all of the functionality is implemented in the underlying abstraction behind it - `RocqProjectServer`. Some requests go directly to the `RocqProjectServer`, bypassing the MCP layer, for example, requests to trigger initialization/destruction of the proof-writing session. These sessions exist to speed-up type-checking, and are abstractions not seen by the model, and not appear in the tool-calls.
+
+--- 
+
+> At first, two abstractions were used to interact with the Rocq-project. The idea was to have a dynamic list of tools, and then load them, and their descriptions using a single entry-point in the agent. However, at some point, the portion of the tools, which require post-processing on the agent-side (proper handling on the mcp-server-side would make more sense, but due to some circumstances, we didn't do that), was removed. The term MCP server could occasionally occur in the documentation, but treat it as the same abstraction, as the Rocq-project server. Hopefully, this issue would be fixed at some point.   
+
+--- 
 
 ### Langfuse setup
 
