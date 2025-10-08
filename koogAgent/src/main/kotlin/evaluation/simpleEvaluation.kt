@@ -9,7 +9,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import org.example.agent.RocqStarAgent
 import org.example.generation.promptExecutorFromAgentConfig
-import org.example.tools.McpSessionManager
 import org.example.utils.ResolvedAgentConfig
 import java.net.http.HttpClient
 import java.nio.file.Path
@@ -23,15 +22,6 @@ suspend fun runSimpleEvaluation(agentConfig: ResolvedAgentConfig, dataset: Path)
     val logger = KotlinLogging.logger {}
 
     val httpClient = HttpClient.newHttpClient()
-    val mcpSessionManager =
-        try {
-            McpSessionManager(
-                agentConfig.mcpServerBaseUrl, httpClient
-            )
-        } catch (_: Exception) {
-            logger.warn { "Could not connect to MCP server. Evaluation will be skipped." }
-            return
-        }
 
     val theoremsJson = Json.parseToJsonElement(dataset.readText()) as JsonObject
 
@@ -47,7 +37,7 @@ suspend fun runSimpleEvaluation(agentConfig: ResolvedAgentConfig, dataset: Path)
 
             try {
                 success = runOnTheorem(
-                    agentConfig, executor, mcpSessionManager, httpClient, filePath, theoremName, logger
+                    agentConfig, executor, httpClient, filePath, theoremName, logger
                 )
             } catch (e: Exception) {
                 logger.warn { "Error while executing theorem $theoremName: $e" }
@@ -63,13 +53,12 @@ suspend fun runSimpleEvaluation(agentConfig: ResolvedAgentConfig, dataset: Path)
 suspend fun runOnTheorem(
     agentConfig: ResolvedAgentConfig,
     executor: PromptExecutor,
-    mcpSessionManager: McpSessionManager,
     httpClient: HttpClient,
     filePath: String,
     theoremName: String,
     logger: KLogger
 ): Boolean {
-    val agent = RocqStarAgent(agentConfig, executor, mcpSessionManager, httpClient)
+    val agent = RocqStarAgent(agentConfig, executor, httpClient)
     val result = agent.execute(theoremName, filePath)
 
     return if (result.isSuccessful) {

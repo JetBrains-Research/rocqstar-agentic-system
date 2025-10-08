@@ -16,17 +16,18 @@ import kotlinx.coroutines.runBlocking
  * This class only contains the wrappers over actual tool-calls;
  * signature of the methods is basically the only thing seen by the agent
  */
+@Suppress("UNUSED_PARAMETER")
 @LLMDescription("Tools for interacting with my MCP Coq server")
 class RocqMcpToolSet(
     private val proofSessionManager: RocqProofSessionManager
 ) : ToolSet {
     @Tool
     @LLMDescription("Get project root info from MCP server")
-    fun getProjectRoot() = proofSessionManager.callTool("get_project_root", false)
+    fun getProjectRoot() = proofSessionManager.callTool("/", false)
 
     @Tool
     @LLMDescription("Returns a list of all Coq files in the project")
-    fun listCoqFiles() = proofSessionManager.callTool("list_coq_files", false)
+    fun listCoqFiles() = proofSessionManager.callTool("all-coq-files", false)
 
     @Tool
     @LLMDescription("Retrieves available theorem names from a file, including the target theorem.")
@@ -34,7 +35,7 @@ class RocqMcpToolSet(
         @LLMDescription("Path to the Coq file")
         filePath: String,
     ) = proofSessionManager.callTool(
-        "get_theorem_names_from_file_with_target_theorem",
+        "theorem-names",
         true,
         mapOf("filePath" to BodyParam.Str(filePath))
     )
@@ -45,7 +46,7 @@ class RocqMcpToolSet(
         @LLMDescription("Path to the Coq file")
         filePath: String,
     ) = proofSessionManager.callTool(
-        "get_theorem_names_from_file_without_target_theorem",
+        "theorem-names",
         false,
         mapOf("filePath" to BodyParam.Str(filePath))
     )
@@ -53,7 +54,7 @@ class RocqMcpToolSet(
     @Tool
     @LLMDescription("Returns the stage of the proof for the target theorem in the current session.")
     fun getCurrentTargetTheoremState() = proofSessionManager.callTool(
-        "get_current_target_theorem_state",
+        "session-theorem",
         true,
         mapOf("proofVersionHash" to BodyParam.Str(proofSessionManager.proofHash))
     )
@@ -66,7 +67,7 @@ class RocqMcpToolSet(
         @LLMDescription("Name of the theorem to retrieve")
         theoremName: String,
     ) = proofSessionManager.callTool(
-        "get_specific_theorem_with_proof_by_name",
+        "theorem",
         true,
         mapOf(
             "filePath" to BodyParam.Str(filePath),
@@ -75,10 +76,6 @@ class RocqMcpToolSet(
         )
     )
 
-    /**
-     * As this method updates the state of the Rocq proof session manager, the request is done directly through the
-     * Rocq project server, bypassing the MCP
-     */
     @Tool
     @LLMDescription(
         "Validates a proof (or a part of a proof) in the context of a session and returns either of the following:\n" +
@@ -105,7 +102,7 @@ class RocqMcpToolSet(
         @LLMDescription("Maximum number of premises to return")
         maxNumberOfPremises: Int = 7,
     ) = proofSessionManager.callTool(
-        "get_similar_proofs",
+        "get-premises",
         true,
         mapOf(
             "goal" to BodyParam.Str(goal),
@@ -120,7 +117,7 @@ class RocqMcpToolSet(
         @LLMDescription("The term to explain")
         term: String,
     ) = proofSessionManager.callTool(
-        "about_term",
+        "about-term",
         true,
         mapOf("term" to BodyParam.Str(term))
     )
@@ -141,7 +138,7 @@ class RocqMcpToolSet(
         @LLMDescription("The term to print")
         term: String,
     ) = proofSessionManager.callTool(
-        "print_term",
+        "print-term",
         true,
         mapOf("term" to BodyParam.Str(term))
     )
@@ -152,7 +149,7 @@ class RocqMcpToolSet(
         @LLMDescription("The term to check")
         term: String,
     ) = proofSessionManager.callTool(
-        "check_term",
+        "check-term",
         true,
         mapOf("term" to BodyParam.Str(term))
     )
@@ -164,11 +161,9 @@ fun main() {
         val apiKey = dotenv["OPENAI_API_KEY"]
             ?: error("OPENAI_API_KEY not set")
 
-        val mcpSessionManager = McpSessionManager()
         val proofSessionManager = RocqProofSessionManager(
             "eco_alt3",
             "src/basic/Execution_eco.v",
-            mcpSessionManager
         )
 
         proofSessionManager.use { sessionManager ->

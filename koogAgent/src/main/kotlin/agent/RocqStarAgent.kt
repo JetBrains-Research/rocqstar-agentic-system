@@ -12,7 +12,6 @@ import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.params.LLMParams
 import org.example.planning.generateMadPlan
 import org.example.planning.generateSimplePlan
-import org.example.tools.McpSessionManager
 import org.example.tools.RocqMcpToolSet
 import org.example.tools.RocqProofSessionManager
 import org.example.utils.extractPropFromJsonString
@@ -34,7 +33,6 @@ import kotlin.use
 class RocqStarAgent(
     private val agentConfig: ResolvedAgentConfig,
     private val executor: PromptExecutor,
-    private val mcpSessionManager: McpSessionManager,
     private val httpClient: HttpClient
 ) {
     suspend fun execute(
@@ -44,10 +42,8 @@ class RocqStarAgent(
         val proofSessionManager = RocqProofSessionManager(
             theoremName,
             targetPath,
-            mcpSessionManager,
             logger,
             agentConfig.coqProjectServerBaseUrl,
-            agentConfig.mcpServerBaseUrl,
             httpClient,
         )
 

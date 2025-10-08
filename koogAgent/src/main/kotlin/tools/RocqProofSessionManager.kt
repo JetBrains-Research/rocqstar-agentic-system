@@ -16,7 +16,7 @@ import kotlin.IllegalArgumentException
  * This class manages the abstraction of Coq-proof session.
  * Coq proof sessions exist on the server side to optimize the type-checking process.
  * When the agent starts proving a given theorem, a new session shall be started.
- * Session is started in the Coq-project server, whereas MCP-tool calls (most of them)
+ * Session is started in the Coq-project server, whereas tool calls (most of them)
  * expect the session-id as a parameter. To hide the abstraction of proof-sessions from
  * the agent and avoid hallucinations, this class manages sessions on its own, intercepting the tool-calls
  * and equipping them with session-ids. The life-time of this class is the process of proving a single theorem.
@@ -29,12 +29,10 @@ import kotlin.IllegalArgumentException
 class RocqProofSessionManager(
     private val theoremName: String,
     private val targetTheoremPath: String,
-    private val mcpSessionManager: McpSessionManager,
     private val logger: KLogger = KotlinLogging.logger {},
     val projectServerBaseUrl: String = "http://localhost:8000/rest/document",
-    val mcpServerBaseUrl: String = "http://localhost:3001/mcp",
     val client: HttpClient = HttpClient.newHttpClient(),
-): AutoCloseable {
+) : AutoCloseable {
     val proofSessionId: String
     var proofHash: String
         private set
@@ -48,15 +46,19 @@ class RocqProofSessionManager(
 
         val initialGoals = setGoalsToInitialState()
         // Actually, it is done in the call, but a kotlin type-checker cannot
-        // infer it as it doesn't know mcp-server invariants
+        // infer it as it doesn't know the server invariants
         currentGoals = initialGoals.goals
     }
 
     /**
-     * It is the wrapper around the request to the MCP server, which accepts a dynamic list
-     * of parameters and a tool name
+     * It is the wrapper around the request to the RocqProjectServer, which accepts a dynamic list
+     * of parameters and a tool name. I kept it generic for those (most) cases, when we don't require
+     * deserialization and post-processing of the response. In those cases, we operate with a raw JSON,
+     * passing it to the model unchanged.
      */
-    fun callTool(toolName: String, insideProofSession: Boolean, args: ServerCallParameters = emptyMap()): String {
+    fun callTool(
+        toolName: String, insideProofSession: Boolean, args: ServerCallParameters = emptyMap()
+    ): String {
         // If llm has provided illegal arguments to the tool-call.
         // Basically checks for empty strings currently
         val validationRes = args.validateParams()
@@ -65,77 +67,17 @@ class RocqProofSessionManager(
         }
 
         val finalArgs = args.withProofSession(insideProofSession, proofSessionId)
-        val argsJson = finalArgs.toJson()
 
-        val body = """
-        |{
-        |  "jsonrpc": "2.0",
-        |  "method": "tools/call",
-        |  "params": {
-        |    "name": "$toolName",
-        |    "arguments": $argsJson
-        |  },
-        |  "id": ${mcpSessionManager.nextToolId}
-        |}
-        """.trimMargin()
-
-        val req = HttpRequest.newBuilder()
-            .uri(URI.create(mcpServerBaseUrl))
-            // These headers are crucial!
-            .header("Accept", "application/json, text/event-stream")
-            .header("Content-Type", "application/json")
-            .header("mcp-session-id", mcpSessionManager.sessionId)
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .build()
-
-        val resp = client.send(req, HttpResponse.BodyHandlers.ofString())
-        return resp.body()
+        return coqProjectRequest<RawJson>(toolName, finalArgs).value
     }
 
     /**
-     * [RocqProofSessionManager] could be used inside a use-block
-     * ```proofSessionManager.use { sessionManager -> { ... }}```,
-     * that will automatically close the session, after the agent is done
-     * proving the given theorem
-     */
-    override fun close() {
-        val finishSessionResult = finishCoqProofSession(proofSessionId)
-        if (!finishSessionResult.success) {
-            throw IllegalStateException("Unable to close proof session")
-        }
-    }
-
-    /**
-     * The following six requests are sent
-     * to the Coq Proof Server, which is a lower-level abstraction under the MCP.
-     * [coqProjectRequest] by-passes the MCP and sends the request directly to the
-     * Coq Proof server. That is done in that way due to multiple reasons. E.g., MCP does not
-     * have requests to start and end the session; we want to wrap the CheckProofs request and manage its
-     * output to update session resources, etc.
+     * The following six requests are overloads with a specific response type for the cases, when
+     * the post-processing of the response is required, e.g., we want to wrap the CheckProofs request
+     * and manage its output to update session resources, etc.
      *
      * @return ID of the started session, and the initial proof hash
      */
-    private fun initializeCoqProofSession(): StartSessionResponse = coqProjectRequest<StartSessionResponse>(
-        "start-session",
-        mapOf(
-            "filePath" to BodyParam.Str(targetTheoremPath),
-            "theoremName" to BodyParam.Str(theoremName)
-        )
-    )
-
-    private fun finishCoqProofSession(sessionId: String) = coqProjectRequest<FinishSessionResponse>(
-        "finish-session",
-        mapOf("coqSessionId" to BodyParam.Str(sessionId))
-    )
-
-    fun getSessionTheorem() = coqProjectRequest<SessionTheoremResponse>(
-        "session-theorem",
-        mapOf(
-            "coqSessionId" to BodyParam.Str(proofSessionId),
-            "proofVersionHash" to BodyParam.Str(proofHash)
-        )
-    )
-
     fun checkProof(proof: BodyParam.Str): ProofCheckResponse {
         logger.info { "Checking proof $proof" }
 
@@ -144,8 +86,7 @@ class RocqProofSessionManager(
         }
 
         val response = coqProjectRequest<ProofCheckResponse>(
-            "check-proof",
-            mapOf(
+            "check-proof", mapOf(
                 "proof" to BodyParam.Str(proof.value),
                 "coqSessionId" to BodyParam.Str(proofSessionId),
                 "proofVersionHash" to BodyParam.Str(proofHash)
@@ -164,12 +105,9 @@ class RocqProofSessionManager(
     }
 
     fun getPremises(
-        goal: String,
-        filePath: String,
-        maxNumberOfPremises: Int = 20
+        goal: String, filePath: String, maxNumberOfPremises: Int = 20
     ) = coqProjectRequest<GetPremisesResponse>(
-        "get-premises",
-        mapOf(
+        "get-premises", mapOf(
             "goal" to BodyParam.Str(goal),
             "filePath" to BodyParam.Str(filePath),
             "maxNumberOfPremises" to BodyParam.Num(maxNumberOfPremises),
@@ -178,8 +116,7 @@ class RocqProofSessionManager(
     )
 
     fun getTheorem(filePath: String, theoremName: String) = coqProjectRequest<TheoremResponse>(
-        "theorem",
-        mapOf(
+        "theorem", mapOf(
             "filePath" to BodyParam.Str(filePath),
             "theoremName" to BodyParam.Str(theoremName),
             "coqSessionId" to BodyParam.Str(proofSessionId),
@@ -188,12 +125,30 @@ class RocqProofSessionManager(
     )
 
     fun searchPattern(pattern: String) = coqProjectRequest<SearchPatternResponse>(
-        "search-pattern",
-        mapOf(
+        "search-pattern", mapOf(
             "pattern" to BodyParam.Str(pattern),
             "coqSessionId" to BodyParam.Str(proofSessionId),
         )
     ).trimLongResponse()
+
+    /**
+     * [getSessionTheorem] is moved as a separate method because it is not available to the agent
+     */
+    fun getSessionTheorem() = coqProjectRequest<SessionTheoremResponse>(
+        "session-theorem", mapOf(
+            "coqSessionId" to BodyParam.Str(proofSessionId), "proofVersionHash" to BodyParam.Str(proofHash)
+        )
+    )
+
+    private fun initializeCoqProofSession(): StartSessionResponse = coqProjectRequest<StartSessionResponse>(
+        "start-session", mapOf(
+            "filePath" to BodyParam.Str(targetTheoremPath), "theoremName" to BodyParam.Str(theoremName)
+        )
+    )
+
+    private fun finishCoqProofSession(sessionId: String) = coqProjectRequest<FinishSessionResponse>(
+        "finish-session", mapOf("coqSessionId" to BodyParam.Str(sessionId))
+    )
 
     fun setGoalsToInitialState(): ProofCheckResponse {
         // This is a workaround to retrieve the initial state of the theorem.
@@ -202,40 +157,38 @@ class RocqProofSessionManager(
     }
 
     /**
-     * In comparison to the MCP server, requests to the Coq project server are
-     * GET requests (for some reason). Therefore, requests are packed with query-parameters
+     * A generic request to the Coq project server; supports cases with and without
+     * deserialization of the response.
      */
     private inline fun <reified ResponseType> coqProjectRequest(
-        path: String,
-        args: ServerCallParameters = emptyMap()
+        path: String, args: ServerCallParameters = emptyMap()
     ): ResponseType {
+        // Requests to the Coq project server are GET requests (for some reason).
+        // Therefore, are packed with query-parameters
         val requestUrl = buildUriWithParams(projectServerBaseUrl, path, args)
 
-        val req = HttpRequest.newBuilder()
-            .uri(requestUrl)
-            .header("Accept", "application/json")
-            .header("Content-Type", "application/json")
-            .GET()
-            .build()
+        val req = HttpRequest.newBuilder().uri(requestUrl).header("Accept", "application/json")
+            .header("Content-Type", "application/json").GET().build()
 
         val resp = client.send(req, HttpResponse.BodyHandlers.ofString())
         val body = resp.body()
 
         return try {
-            // Deserialize to the requested type
-            Json.decodeFromString<ResponseType>(body)
+            // Deserialize to the requested type; if RawJson requested, return as is
+            if (ResponseType::class == RawJson::class) {
+                RawJson(body) as ResponseType
+            } else {
+                Json.decodeFromString<ResponseType>(body)
+            }
         } catch (e: Exception) {
             throw IllegalArgumentException(
-                "Failed to parse response into ${ResponseType::class.simpleName}: $body",
-                e
+                "Failed to parse response into ${ResponseType::class.simpleName}: $body", e
             )
         }
     }
 
     private fun buildUriWithParams(
-        baseUrl: String,
-        path: String,
-        params: ServerCallParameters
+        baseUrl: String, path: String, params: ServerCallParameters
     ): URI {
         val charset = StandardCharsets.UTF_8
         val query = params.entries.joinToString("&") { (k, v) ->
@@ -260,42 +213,38 @@ class RocqProofSessionManager(
      * Method to insert [proofSessionId] to the tool-call parameters
      */
     private fun ServerCallParameters.withProofSession(
-        enabled: Boolean,
-        proofSession: String
-    ): ServerCallParameters =
-        if (enabled) this + ("coqSessionId" to BodyParam.Str(proofSession)) else this
+        enabled: Boolean, proofSession: String
+    ): ServerCallParameters = if (enabled) this + ("coqSessionId" to BodyParam.Str(proofSession)) else this
 
-    private fun ServerCallParameters.toJson(): String {
-        return entries.joinToString(
-            prefix = "{", postfix = "}"
-        ) { (k, v) ->
-            val value = when (v) {
-                is BodyParam.Str -> "\"${v.value.replace("\"", "\\\"")}\""
-                is BodyParam.Num -> v.value.toString()
-            }
-            "\"$k\": $value"
+    /**
+     * [RocqProofSessionManager] could be used inside a use-block
+     * ```proofSessionManager.use { sessionManager -> { ... }}```,
+     * that will automatically close the session, after the agent is done
+     * proving the given theorem
+     */
+    override fun close() {
+        val finishSessionResult = finishCoqProofSession(proofSessionId)
+        if (!finishSessionResult.success) {
+            throw IllegalStateException("Unable to close proof session")
         }
     }
 }
 
 @Serializable
 data class StartSessionResponse(
-    val sessionId: String,
-    val proofVersionHash: String
+    val sessionId: String, val proofVersionHash: String
 )
 
 @Serializable
 data class FinishSessionResponse(
-    val success: Boolean,
-    val message: String
+    val success: Boolean, val message: String
 )
 
 sealed class BodyParam {
     data class Str(val value: String) : BodyParam() {
-        fun isEmpty(): Boolean = value.isEmpty() ||
-                value.isBlank() ||
-                value == EMPTY_JSON
+        fun isEmpty(): Boolean = value.isEmpty() || value.isBlank() || value == EMPTY_JSON
     }
+
     data class Num(val value: Int) : BodyParam()
 
     fun asString(): String = when (this) {
@@ -315,5 +264,8 @@ fun ServerCallParameters.validateParams(): Result<Unit> {
 
     return Result.success(Unit)
 }
+
+@JvmInline
+value class RawJson(val value: String)
 
 const val EMPTY_JSON = "{}"

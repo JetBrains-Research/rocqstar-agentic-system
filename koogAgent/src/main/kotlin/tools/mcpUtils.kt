@@ -7,7 +7,6 @@ import io.github.oshai.kotlinlogging.KLogger
 import org.example.agent.SimilarTheorems
 import org.example.agent.Theorem
 import org.example.agent.wrapPromptElement
-import java.util.logging.Logger
 import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.full.findAnnotation
 

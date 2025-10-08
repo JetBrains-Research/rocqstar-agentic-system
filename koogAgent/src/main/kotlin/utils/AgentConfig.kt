@@ -21,8 +21,6 @@ data class AgentConfig private constructor(
 
     @param:JsonProperty("coq_project_server_url")
     val coqProjectServerBaseUrl: String,
-    @param:JsonProperty("mcp_server_url")
-    val mcpServerBaseUrl: String,
     @param:JsonProperty("langfuse_host")
     val langfuseHostUrl: String,
     @param:JsonProperty("jaeger_host")
@@ -75,7 +73,6 @@ data class AgentConfig private constructor(
         agentId = agentId,
         agentVersion = agentVersion,
         coqProjectServerBaseUrl = coqProjectServerBaseUrl,
-        mcpServerBaseUrl = mcpServerBaseUrl,
         langfuseHostUrl = langfuseHostUrl,
         jaegerHostUrl = jaegerHostUrl,
         pathToTheorems = pathToTheorems,
@@ -98,7 +95,6 @@ data class ResolvedAgentConfig(
     val agentId: String,
     val agentVersion: String,
     val coqProjectServerBaseUrl: String,
-    val mcpServerBaseUrl: String,
     val langfuseHostUrl: String,
     val jaegerHostUrl: String,
     val pathToTheorems: String,
