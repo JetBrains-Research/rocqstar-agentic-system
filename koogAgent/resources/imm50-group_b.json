@@ -1,0 +1,41 @@
+{
+  "src/imm/imm_hb.v": [
+    "eco_sw_1"
+  ],
+  "src/travorder/TraversalOrder.v": [
+    "ERF"
+  ],
+  "src/travorder/EventsTraversalOrder.v": [
+    "dom_detour_rfe_ppo_issuable"
+  ],
+  "src/hardware/Arm.v": [
+    "wf_obs'E",
+    "wf_obsE",
+    "wf_bobE"
+  ],
+  "src/simhelpers/ViewRelHelpers.v": [
+    "next_helper'"
+  ],
+  "src/travorder/SimClosure.v": [
+    "iiord_step_incl"
+  ],
+  "src/basic/Execution_eco.v": [
+    "eco_trans",
+    "fre_coi"
+  ],
+  "src/traversal/TraversalConfig.v": [
+    "dom_sc_coverable"
+  ],
+  "src/basic/FairExecution.v": [
+    "fin_exec_full_fair"
+  ],
+  "src/hardware/Power_ppo.v": [
+    "ppo_detour_ppo"
+  ],
+  "src/hardware/immToPower.v": [
+    "rmw_in_deps"
+  ],
+  "src/basic/Execution.v": [
+    "no_sb_cr_to_init"
+  ]
+}

@@ -1,0 +1,187 @@
+package org.example.tools
+
+import ai.koog.agents.core.agent.AIAgent
+import ai.koog.agents.core.tools.ToolRegistry
+import ai.koog.agents.core.tools.annotations.LLMDescription
+import ai.koog.agents.core.tools.annotations.Tool
+import ai.koog.agents.core.tools.reflect.ToolSet
+import ai.koog.agents.core.tools.reflect.tools
+import ai.koog.prompt.executor.clients.openai.OpenAIModels
+import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
+import io.github.cdimascio.dotenv.dotenv
+import kotlinx.coroutines.runBlocking
+
+
+/**
+ * This class only contains the wrappers over actual tool-calls;
+ * signature of the methods is basically the only thing seen by the agent
+ */
+@Suppress("UNUSED_PARAMETER")
+@LLMDescription("Tools for interacting with my MCP Coq server")
+class RocqMcpToolSet(
+    private val proofSessionManager: RocqProofSessionManager
+) : ToolSet {
+    @Tool
+    @LLMDescription("Get project root info from MCP server")
+    fun getProjectRoot() = proofSessionManager.callTool("/", false)
+
+    @Tool
+    @LLMDescription("Returns a list of all Coq files in the project")
+    fun listCoqFiles() = proofSessionManager.callTool("all-coq-files", false)
+
+    @Tool
+    @LLMDescription("Retrieves available theorem names from a file, including the target theorem.")
+    fun getTheoremNamesFromFileWithTargetTheorem(
+        @LLMDescription("Path to the Coq file")
+        filePath: String,
+    ) = proofSessionManager.callTool(
+        "theorem-names",
+        true,
+        mapOf("filePath" to BodyParam.Str(filePath))
+    )
+
+    @Tool
+    @LLMDescription("Retrieves available theorem names from a file with target theorem excluded from the list.")
+    fun getTheoremNamesFromFileWithoutTargetTheorem(
+        @LLMDescription("Path to the Coq file")
+        filePath: String,
+    ) = proofSessionManager.callTool(
+        "theorem-names",
+        false,
+        mapOf("filePath" to BodyParam.Str(filePath))
+    )
+
+    @Tool
+    @LLMDescription("Returns the stage of the proof for the target theorem in the current session.")
+    fun getCurrentTargetTheoremState() = proofSessionManager.callTool(
+        "session-theorem",
+        true,
+        mapOf("proofVersionHash" to BodyParam.Str(proofSessionManager.proofHash))
+    )
+
+    @Tool
+    @LLMDescription("Given the theorem's name, returns the theorem with its proof.")
+    fun getSpecificTheoremWithProofByName(
+        @LLMDescription("Path to the Coq file")
+        filePath: String,
+        @LLMDescription("Name of the theorem to retrieve")
+        theoremName: String,
+    ) = proofSessionManager.callTool(
+        "theorem",
+        true,
+        mapOf(
+            "filePath" to BodyParam.Str(filePath),
+            "theoremName" to BodyParam.Str(theoremName),
+            "proofVersionHash" to BodyParam.Str(proofSessionManager.proofHash),
+        )
+    )
+
+    @Tool
+    @LLMDescription(
+        "Validates a proof (or a part of a proof) in the context of a session and returns either of the following:\n" +
+        "(i) That there are no more goals to prove\n" +
+        "(ii) Provided proof produces no errors, but the goal is not fully solved. Returns: updated goal state\n" +
+        "(iii) The current goal is solved, but there are more goals at other depth levels. Returns: first unsolved goal at the closest depth level\n" +
+        "(iv) Provided proof produces errors. Returns: error message"
+    )
+    fun checkProof(
+        @LLMDescription("The proof to validate. It should start with 'Proof.'")
+        proof: String,
+    ) = proofSessionManager.checkProof(BodyParam.Str(proof))
+
+    @Tool
+    @LLMDescription("Retrieves similar proofs for a goal in a file")
+    fun getSimilarProofs(
+        @LLMDescription(
+            "The goal to find similar proofs for. Should be a JSON string matching the interface: " +
+            "\"{ hypothesis: string[], conclusion: string }\". IT IS A STRING NOT AN OBJECT"
+        )
+        goal: String,
+        @LLMDescription("Path to the Coq file")
+        filePath: String,
+        @LLMDescription("Maximum number of premises to return")
+        maxNumberOfPremises: Int = 7,
+    ) = proofSessionManager.callTool(
+        "get-premises",
+        true,
+        mapOf(
+            "goal" to BodyParam.Str(goal),
+            "filePath" to BodyParam.Str(filePath),
+            "maxNumberOfPremises" to BodyParam.Num(maxNumberOfPremises)
+        )
+    )
+
+    @Tool
+    @LLMDescription("Explains a term in the current session's file. Uses About Coq Command.")
+    fun aboutTerm(
+        @LLMDescription("The term to explain")
+        term: String,
+    ) = proofSessionManager.callTool(
+        "about-term",
+        true,
+        mapOf("term" to BodyParam.Str(term))
+    )
+
+    @Tool
+    @LLMDescription(
+        "Searches for a pattern in the current session's file. Uses Search Coq Command. An example of a valid command: " +
+        "Search (?a + ?b = ?b + ?a). It could be useful for finding lemmas that could be used in the proof."
+    )
+    fun searchPattern(
+        @LLMDescription("The pattern to search for")
+        pattern: String,
+    ) = proofSessionManager.searchPattern(pattern)
+
+    @Tool
+    @LLMDescription("Prints a term in the current session's file. Uses Print Coq Command.")
+    fun printTerm(
+        @LLMDescription("The term to print")
+        term: String,
+    ) = proofSessionManager.callTool(
+        "print-term",
+        true,
+        mapOf("term" to BodyParam.Str(term))
+    )
+
+    @Tool
+    @LLMDescription("Checks a term in the current session's file. Uses Check Coq Command. It outputs only the type of the term. In the case of a theorem, it outputs its statement.")
+    fun checkTerm(
+        @LLMDescription("The term to check")
+        term: String,
+    ) = proofSessionManager.callTool(
+        "check-term",
+        true,
+        mapOf("term" to BodyParam.Str(term))
+    )
+}
+
+fun main() {
+    runBlocking {
+        val dotenv = dotenv()
+        val apiKey = dotenv["OPENAI_API_KEY"]
+            ?: error("OPENAI_API_KEY not set")
+
+        val proofSessionManager = RocqProofSessionManager(
+            "eco_alt3",
+            "src/basic/Execution_eco.v",
+        )
+
+        proofSessionManager.use { sessionManager ->
+            val mcpTools = RocqMcpToolSet(
+                sessionManager
+            )
+
+            val agent = AIAgent(
+                executor = simpleOpenAIExecutor(apiKey),
+                systemPrompt = "You are agent that can communicate to the Coq MCP.",
+                llmModel = OpenAIModels.Chat.GPT4o,
+                toolRegistry = ToolRegistry {
+                    tools(mcpTools)
+                }
+            )
+
+            val result = agent.run("Firstly, call the searchPattern tool with no_co_to_init argument")
+            println("AGENT RESULT: $result")
+        }
+    }
+}

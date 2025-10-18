@@ -1,0 +1,34 @@
+{
+  "src/jsmm/JSMMToimm_s.v": [
+    "sw_js_in_sw"
+  ],
+  "src/hardware/Power_ppo.v": [
+    "L_is_ic"
+  ],
+  "src/travorder/IordCoherency.v": [
+    "dom_rel_iord_ext_parts_tl"
+  ],
+  "src/ocamlmm/OCamlToimm_s.v": [
+    "ohb_in_hb",
+    "rmw_rf_ct_sb_scb"
+  ],
+  "src/travorder/EventsTraversalOrder.v": [
+    "ar_rf_ppo_loc_ct_issuable_in_I"
+  ],
+  "src/imm/imm_hb.v": [
+    "wf_rsD"
+  ],
+  "src/hardware/immToARMhelper.v": [
+    "bob_in_boba",
+    "f_sy_hb_in_ord"
+  ],
+  "src/travorder/ReserveClos.v": [
+    "reserve_clos_init_tls"
+  ],
+  "src/basic/Execution.v": [
+    "rt_rf_rmw"
+  ],
+  "src/simhelpers/CertCOhelper.v": [
+    "new_co_in"
+  ]
+}

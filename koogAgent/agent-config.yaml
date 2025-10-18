@@ -1,0 +1,83 @@
+agentId: "apr-rocqstar-koog-agent"
+agentVersion: "0.0.1"
+
+coq_project_server_url: "http://localhost:8000/rest/document"
+langfuse_host: "https://langfuse.labs.jb.gg"
+# Live blank if not using Jaeger
+jaeger_host: "http://localhost:4317"
+
+path_to_theorems: "resources/imm50-group_a.json"
+
+# Grazie is an internal service not usable by public users.
+# In case you use OpenAI/Anthropic services, be careful to use
+# only the models that are compatible with the OpenAI/Anthropic API.
+backend: "grazie" # "grazie" | "openai | anthropic | openrouter"
+planning_type: "mad" # "mad" (multi-agentic-debates) | "simple"
+
+how_many_plans_to_generate: 3 # default: 3
+how_many_best_plans_to_execute: 2 # default: 2
+maximum_premises_from_ranker: 20 # default: 20
+allowed_failed_proof_checks_in_row: 5 # default: 5
+total_allowed_tool_calls: 20 # default: 20
+
+# Default model setup. When no parameter is specified in the model
+# configuration, it is resolved to a default value
+defaults:
+  max_tokens_to_sample: 2048
+  temperature: 0.8
+  profile: "anthropic-claude-3.5-sonnet"
+
+grazie:
+  client_auth_type: "user" # "application" | "user"
+  grazie_environment: "staging" # "staging" | "production"
+
+planning:
+  plan_ranker:
+    max_tokens_to_sample: 1024
+    temperature: ""
+    profile: ""
+  mad_planning:
+    mad_rounds_number: 2
+    pro_plan_model:
+      max_tokens_to_sample: ""
+      temperature: ""
+      profile: ""
+    con_plan_model:
+      max_tokens_to_sample: ""
+      temperature: ""
+      profile: ""
+    judge_model:
+      max_tokens_to_sample: ""
+      temperature: ""
+      profile: ""
+
+  simple_planning:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+
+generators:
+  executor:
+    max_tokens_to_sample: 8000
+    temperature: ""
+    profile: ""
+  proof_progress_critic:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: "anthropic-claude-3.7-sonnet"
+  replanner:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+  summarizer:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+  plan_failure_summarizer:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
+  similar_theorems_analyzer:
+    max_tokens_to_sample: ""
+    temperature: ""
+    profile: ""
